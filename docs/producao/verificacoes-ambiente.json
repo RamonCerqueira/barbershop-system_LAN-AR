@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-30",
+  "timezone": "America/Sao_Paulo",
+  "scope": "local workspace, no production deployment inspected",
+  "install": { "command": "npm ci --ignore-scripts --no-audit --no-fund --fetch-retries=0 --fetch-timeout=30000", "exitCode": 0, "packagesAdded": 429 },
+  "typecheck": { "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false", "exitCode": 1, "errors": 9, "files": ["src/app/cliente/barbearia/[id]/page.tsx", "src/app/dashboard/caixa/page.tsx"], "codes": ["TS1128", "TS1109"] },
+  "build": { "command": "npm run build", "exitCode": 1, "errors": ["Syntax errors in client booking and cashier pages", "next/font failed to fetch Geist and Geist Mono from Google Fonts (EACCES)"] },
+  "lint": { "command": "npm run lint", "exitCode": 1, "status": "FAILED", "errors": ["Parsing error in client booking page at line 358", "Parsing error in cashier page at line 702"], "warnings": "Native image optimization warnings in landing components" },
+  "prismaValidate": { "exitCode": 1, "status": "BLOCKED", "reason": "Download of schema-engine.exe.gz.sha256 from binaries.prisma.sh failed" },
+  "prismaGenerate": { "exitCode": 1, "status": "BLOCKED", "reason": "Download of schema-engine.exe.gz.sha256 from binaries.prisma.sh failed" },
+  "postgres": { "target": "localhost:5432", "tcp": "OPEN", "sqlConnectionTested": false, "schemaValidated": false, "writes": 0 },
+  "integrations": { "whatsappConfigured": false, "smtpConfigured": false, "paymentKeysConfigured": false },
+  "configuration": { "localJwtMatchesKnownExample": true, "secretsIncludedInReport": false },
+  "migration": { "initialMigrationIncludesSalePaymentStatus": false, "initialMigrationIncludesProofUrl": false, "databaseDriftTested": false },
+  "isolatedAudit": { "command": "node scripts/audit-production.cjs", "exitCode": 0, "cases": 22, "findingsReproduced": 14, "contractsConfirmed": 8, "harnessErrors": 0, "databaseAdapters": "MOCKED", "externalNetworkCalls": 0 },
+  "browserE2E": { "status": "BLOCKED_NOT_APPROVED", "reason": "Source compilation failures, unavailable Prisma engine and unconfigured integrations", "flowsApproved": 0 }
+}

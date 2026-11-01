@@ -1,0 +1,848 @@
+[
+  {
+    "path": "src/app/admin/page.tsx",
+    "sha256": "327e5775e8a2b22963a11fd626945bd52666e2706fca85554e8a54f522c37ad2",
+    "lines": 533,
+    "methods": [],
+    "requests": [
+      "`/api/admin/overview?period=${selectedPeriod}`)",
+      "`/api/admin/companies/${company.id}`, {",
+      "`/api/admin/companies/${editingCompany.id}`, {",
+      "`/api/admin/companies/${id}`, {",
+      "'/api/auth/logout', { method: 'POST' })"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/admin/companies/[id]/route.ts",
+    "sha256": "40b9ccf60f3c78872d6ed7cb352a57039f502e5a2b21907a0c8e7861b2908815",
+    "lines": 94,
+    "methods": [
+      "PATCH",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/admin/overview/route.ts",
+    "sha256": "c1b768f57d660e9df7176744b704323915b1969c1c5f8f15af97c4161a965a52",
+    "lines": 105,
+    "methods": [
+      "GET"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/appointments/route.ts",
+    "sha256": "14f119b6ed2d092a111860a794a5d759c64c57155b5339a60946a81c6270315f",
+    "lines": 225,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/appointments/[id]/route.ts",
+    "sha256": "2b1e71920cee36a5fb7daddeed2b3fcf259859c30e0ab52b39da09e0ee588400",
+    "lines": 130,
+    "methods": [
+      "PATCH",
+      "PUT",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/auth/forgot-password/route.ts",
+    "sha256": "28ce6798a6e984392c63abddf3f57d8223ec50098b7d09cb12e8e363e1a0d106",
+    "lines": 57,
+    "methods": [
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/auth/forgotPassword/routes.ts",
+    "sha256": "2246df02e5f5d2a5f35e9f3cd45a31f2a935c21409788d68cbb727ba2be3f7c8",
+    "lines": 37,
+    "methods": [
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/auth/login/route.ts",
+    "sha256": "e4d6e969b05d561f5887e40b713ed21f475aabeb2fa0288cf3554053399f5cad",
+    "lines": 47,
+    "methods": [
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/auth/logout/route.ts",
+    "sha256": "e280a8e279d87be1331b968b9ec3029fe6fee6a398a433275af8163d07bd1bd7",
+    "lines": 14,
+    "methods": [
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/auth/reset-password/route.ts",
+    "sha256": "55daf6cadd2eb2c91076e6ed8e8d5be39a920b798669e5be30565f5326337163",
+    "lines": 73,
+    "methods": [
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/clients/route.ts",
+    "sha256": "c414a405664a29e39cc58d023e2f4335104af26730dbfc2e704b830bcb65dcf7",
+    "lines": 88,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/clients/[id]/route.ts",
+    "sha256": "4b1cd3e02f6dfbc4e9bbf254ab96586788d778057074cea14b6899de663da73e",
+    "lines": 95,
+    "methods": [
+      "PUT",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/companies/register/route.ts",
+    "sha256": "09cbd2dc6433343e69eea0dea297d5610dc0e7a7d6b49b71532ae998c58c2744",
+    "lines": 117,
+    "methods": [
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/dashboard/route.ts",
+    "sha256": "290aa0cdd0dc2048e3fddd18f2b910e7936dc0e4955573ff0d7ddbb405c9c7cf",
+    "lines": 147,
+    "methods": [
+      "GET"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/employees/route.ts",
+    "sha256": "57982e561b1b68e2d8bfb9310de7efa89f2b3360bae6ca8a732af7cecdc771db",
+    "lines": 114,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/employees/[id]/route.ts",
+    "sha256": "63e6fa3af6d54bf5cdb3525f61139a5c7c8acf9359b74088e34323e15bff019e",
+    "lines": 134,
+    "methods": [
+      "PUT",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/hero-image/route.ts",
+    "sha256": "89abc63d1b8ec8519c10def03075af97ec3a0526581d7943f663e1d236b585b5",
+    "lines": 31,
+    "methods": [
+      "GET"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/notifications/route.ts",
+    "sha256": "61426f32d787e49ca592de7da94f9e4ff90d7c79c777d9e6788dde2c6815abb0",
+    "lines": 84,
+    "methods": [
+      "GET",
+      "PATCH",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/products/route.ts",
+    "sha256": "0fe74ed2921c057840c1316c7c93df559c113c15293e418dbdc63618aa0a1982",
+    "lines": 74,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/products/[id]/route.ts",
+    "sha256": "9d90f7a0dc179b096b64e9df8e4d3a5fecb30507d7218dcc1b5395350c27a66a",
+    "lines": 111,
+    "methods": [
+      "PUT",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/public/appointments/route.ts",
+    "sha256": "ec659792a1918a1deccf54f83049610417554e2549dcefe19c39b2768bb0f0bf",
+    "lines": 187,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/public/appointments/[id]/route.ts",
+    "sha256": "f3412ebbb2f31ddf1b670521e3a20f988176583a0e90081d107f4e1c97d65545",
+    "lines": 91,
+    "methods": [
+      "GET",
+      "PATCH"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/public/barbershops/route.ts",
+    "sha256": "d85f0dffab0404ac6775f6a49f4ca9aca41294c41ccaca63f7c088e3b34883ab",
+    "lines": 98,
+    "methods": [
+      "GET"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/public/barbershops/[id]/route.ts",
+    "sha256": "f9d0190d2fa002cfe04531e7b56de9078cc67d2f0f1e46cac3d61e00683c0d85",
+    "lines": 178,
+    "methods": [
+      "GET"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/sales/route.ts",
+    "sha256": "34a9f80a9c82b50369e7a0d7e598c4178ed6a1c61ecddf032a1a637e1458ee89",
+    "lines": 202,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/sales/[id]/route.ts",
+    "sha256": "e23b558f55795a867b727fedd735cecee31d0e790ad9a5d3c805f29ac01fcbb0",
+    "lines": 105,
+    "methods": [
+      "PATCH",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/seed/route.ts",
+    "sha256": "166d2903c7414eda80b558da846860c5477c94904fcb1a46a1fe778534054334",
+    "lines": 361,
+    "methods": [
+      "POST",
+      "GET"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/send-whatsapp/route.ts",
+    "sha256": "ad674833a2fe7fe40d846b543c5dcda130799419977e46f6cf5ad4f4066463c9",
+    "lines": 92,
+    "methods": [
+      "POST"
+    ],
+    "requests": [
+      "apiUrl, {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/service-costs/route.ts",
+    "sha256": "6ab5aff4e2e817e7ad606b92630e25a643e419b0d5fc7f0a6549e6f430ea1b7a",
+    "lines": 212,
+    "methods": [
+      "GET",
+      "POST",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/services/route.ts",
+    "sha256": "feda4bd248ad25499cc57792b59e2da0b83401d22e449fc49a78cb8da6077a3e",
+    "lines": 80,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/services/[id]/route.ts",
+    "sha256": "5bc07de44026a7074ca096c66e2a5d452920af26abc8d72e0d11ef0b2444a94b",
+    "lines": 78,
+    "methods": [
+      "PUT",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/settings/route.ts",
+    "sha256": "c5bd130cf72317e41f52a3db94ffbd09c94d9e20c02ef23eb4c99e4eda5953ee",
+    "lines": 131,
+    "methods": [
+      "GET",
+      "PUT"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/whatsapp-campaigns/route.ts",
+    "sha256": "456034a714ebf7cfcb4a3411ca852369ae14fe3c9c0631d4371a6af08c7b57ba",
+    "lines": 172,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/api/whatsapp-campaigns/[id]/route.ts",
+    "sha256": "95a664a49dfecd204412c790e4f79965fdebb43b5b0f76622ef2bf6f7bcac9a3",
+    "lines": 138,
+    "methods": [
+      "PATCH",
+      "DELETE"
+    ],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/cliente/barbearia/[id]/page.tsx",
+    "sha256": "db0faa6063d2bf0db77641bedea1eaad54e70b8043df3cf121c6c8e2246982f5",
+    "lines": 361,
+    "methods": [],
+    "requests": [
+      "'/api/public/appointments', {"
+    ],
+    "diagnostics": [
+      {
+        "line": 358,
+        "message": "Declaration or statement expected."
+      },
+      {
+        "line": 359,
+        "message": "Expression expected."
+      },
+      {
+        "line": 360,
+        "message": "Declaration or statement expected."
+      }
+    ]
+  },
+  {
+    "path": "src/app/cliente/page.tsx",
+    "sha256": "4c0599834284166178b1b0c4f210033518e26f78d2538b50c83ddf85e5f30920",
+    "lines": 325,
+    "methods": [],
+    "requests": [
+      "`/api/public/appointments?${params.toString()}`)"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/confirm/[id]/page.tsx",
+    "sha256": "a5882a3cab7305d3daee175d6d933a9a6377f7dbf932002fe09ca4673201d4cb",
+    "lines": 164,
+    "methods": [],
+    "requests": [
+      "`/api/public/appointments/${id}`)",
+      "`/api/public/appointments/${id}`, {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/contratar/page.tsx",
+    "sha256": "9eca38ae4d32cee437f6f3d8db410d3e50181588a71e6259c03738574829dce6",
+    "lines": 553,
+    "methods": [],
+    "requests": [
+      "'/api/companies/register', {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/agendamentos/page.tsx",
+    "sha256": "dc7e120a645ba079b0ad27098dbd8672c5e26db09e6af02d8c3cf22ed698c96c",
+    "lines": 651,
+    "methods": [],
+    "requests": [
+      "`/api/appointments?${params.toString()}`),",
+      "'/api/clients'),",
+      "'/api/services'),",
+      "'/api/employees')",
+      "`/api/appointments/${editingApt.id}`, {",
+      "'/api/appointments', {",
+      "`/api/appointments/${id}`, {",
+      "`/api/appointments/${id}`, { method: 'DELETE' })"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/agendamentos-calendario/page.tsx",
+    "sha256": "a79b7ac0c32874bf3095f6c6d4dc965a1dff77964f8b17665a7512bea23f8e4c",
+    "lines": 673,
+    "methods": [],
+    "requests": [
+      "`/api/appointments?month=${monthStr}`),",
+      "'/api/employees'),",
+      "'/api/services')",
+      "`/api/appointments/${appointmentId}`, {",
+      "'/api/appointments', {",
+      "'/api/send-whatsapp', {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/analise-servicos/page.tsx",
+    "sha256": "4b5e0e5b83ca3b1a0547b48c94e48f1e0e4593a8843cb112fb398598bf9aa700",
+    "lines": 426,
+    "methods": [],
+    "requests": [
+      "`/api/service-costs?period=${selectedPeriod}`)",
+      "'/api/service-costs', {",
+      "`/api/service-costs?id=${costId}`, {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/caixa/page.tsx",
+    "sha256": "854548f92b4aeab9b07bc29706bb890c826ff054dd26ca494ca0aa6e990b867c",
+    "lines": 707,
+    "methods": [],
+    "requests": [
+      "`/api/sales?date=${selectedDate}`),",
+      "`/api/appointments?date=${selectedDate}`),",
+      "'/api/products')",
+      "'/api/sales', {",
+      "`/api/sales/${saleId}`, {"
+    ],
+    "diagnostics": [
+      {
+        "line": 702,
+        "message": "Declaration or statement expected."
+      },
+      {
+        "line": 703,
+        "message": "Expression expected."
+      },
+      {
+        "line": 703,
+        "message": "Declaration or statement expected."
+      },
+      {
+        "line": 704,
+        "message": "Declaration or statement expected."
+      },
+      {
+        "line": 705,
+        "message": "Expression expected."
+      },
+      {
+        "line": 706,
+        "message": "Declaration or statement expected."
+      }
+    ]
+  },
+  {
+    "path": "src/app/dashboard/campanhas-whatsapp/page.tsx",
+    "sha256": "012bf6145d2a7efefe0e44a14b30b59f929fb1af129fd2f3123e77a75e3aa7d8",
+    "lines": 459,
+    "methods": [],
+    "requests": [
+      "'/api/whatsapp-campaigns')",
+      "`/api/whatsapp-campaigns/${editingCampaign.id}`, {",
+      "'/api/whatsapp-campaigns', {",
+      "`/api/whatsapp-campaigns/${campaign.id}`, {",
+      "`/api/whatsapp-campaigns/${campaign.id}`, {",
+      "`/api/whatsapp-campaigns/${id}`, {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/clientes/page.tsx",
+    "sha256": "257b5d41cf46336a29931c65d3ad5e64ca0930824f752de5832ca36d1f7f4051",
+    "lines": 470,
+    "methods": [],
+    "requests": [
+      "'/api/clients')",
+      "`/api/clients/${editingClient.id}`, {",
+      "'/api/clients', {",
+      "`/api/clients/${id}`, { method: 'DELETE' })"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/colaboradores/page.tsx",
+    "sha256": "63c691b609d0bfab6256c4eeb03daaca48d6e1c8d29470f8ef54ede36f7c14ed",
+    "lines": 462,
+    "methods": [],
+    "requests": [
+      "'/api/employees')",
+      "`/api/employees/${editingEmployee.id}`, {",
+      "'/api/employees', {",
+      "`/api/employees/${id}`, { method: 'DELETE' })"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/colaboradores-especialidades/page.tsx",
+    "sha256": "c332ba09caaeb7aa46441309725d671195768188a37620117f4be5c120916b79",
+    "lines": 616,
+    "methods": [],
+    "requests": [
+      "'/api/employees')",
+      "`/api/employees/${editingCollaborator.id}`, {",
+      "'/api/employees', {",
+      "`/api/employees/${selectedCollaborator.id}`, {",
+      "`/api/employees/${collaborator.id}`, {",
+      "`/api/employees/${collaborator.id}`, {",
+      "`/api/employees/${id}`, { method: 'DELETE' })"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/configuracoes/page.tsx",
+    "sha256": "674d1c5be290330e2f81a9111b1862080114d9b5f3302903adcd728dd299cff9",
+    "lines": 603,
+    "methods": [],
+    "requests": [
+      "'/api/settings')",
+      "'/api/settings', {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/layout.tsx",
+    "sha256": "6092489621f0a6d51ca0e47c49f047d342829e37b346c228cfee5ae2f9ca9877",
+    "lines": 10,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/page.tsx",
+    "sha256": "09452692797433dd95d31848c559d0bc84adbfa17e2c4c3608f9b4de688f4ef2",
+    "lines": 356,
+    "methods": [],
+    "requests": [
+      "'/api/dashboard')"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/produtos/page.tsx",
+    "sha256": "762b5ce9e262cceb8bbec76b65cb461a94734112fda88b7ac9f8dacb2308adc2",
+    "lines": 463,
+    "methods": [],
+    "requests": [
+      "'/api/products')",
+      "`/api/products/${editingProduct.id}`, {",
+      "'/api/products', {",
+      "`/api/products/${id}`, { method: 'DELETE' })",
+      "`/api/products/${product.id}`, {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/dashboard/servicos/page.tsx",
+    "sha256": "fc2c18c3c50c14b5ad42b5f8ba59af7e92b1ae5b82cb0431572b5a2ab4f45e1b",
+    "lines": 465,
+    "methods": [],
+    "requests": [
+      "'/api/services')",
+      "`/api/services/${editingService.id}`, {",
+      "'/api/services', {",
+      "`/api/services/${id}`, { method: 'DELETE' })",
+      "`/api/services/${service.id}`, {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/layout.tsx",
+    "sha256": "124b3811457c62f1673f35ed04199d256343f83b1324a5b54b252760b01a80e7",
+    "lines": 112,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/login/page.tsx",
+    "sha256": "4716e6af22cc7133772e6b2c63b71dd0cdf0541c1a7f386053e172e31ca468ff",
+    "lines": 468,
+    "methods": [],
+    "requests": [
+      "\"/api/auth/login\", {",
+      "\"/api/auth/forgot-password\", {",
+      "\"/api/auth/reset-password\", {",
+      "\"/api/seed\", { method: \"POST\" });"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/app/page.tsx",
+    "sha256": "470cb80df76783b3713e2a4f8d819401103ccb8cfc295ee4ec1df7cad2941d5a",
+    "lines": 74,
+    "methods": [],
+    "requests": [
+      "'/api/seed', { method: 'POST' }).catch(() => {});"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/DashboardLayout.tsx",
+    "sha256": "2dd8348be2e3d20a705ca9e115d52ace5fbddb8e59e490343ee35f22432eeb6d",
+    "lines": 296,
+    "methods": [],
+    "requests": [
+      "'/api/notifications')",
+      "'/api/notifications', {",
+      "'/api/notifications', { method: 'DELETE' })",
+      "'/api/auth/logout', { method: 'POST' })"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/ClientBooking.tsx",
+    "sha256": "551c11c1b064edb2e873bc820fbeaac5d7671a1bcac822d97b850eae1d832f59",
+    "lines": 382,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/FeaturesBar.tsx",
+    "sha256": "841717930ef9010b3d5a75ad2e9e150b62424dd48199ff8cfcedcef71d36f8c7",
+    "lines": 109,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/FinalCTA.tsx",
+    "sha256": "8d3f9c768ae1e856e2c2552da8ef437d3bf1da8aa3117729c76385305590fbb5",
+    "lines": 74,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/Footer.tsx",
+    "sha256": "0335a702a64d704fb73662dd652af984c63f1a6195cfd45f97272b87569c2b7d",
+    "lines": 138,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/Header.tsx",
+    "sha256": "60c4acc5d6f8023fb214e3b454352cc5e3ba1077f319a1d5d16ebe817a78e10b",
+    "lines": 190,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/Hero.tsx",
+    "sha256": "6825fb2cd32100bd82cfe6950e5fbbd623b8a075881cd4e326387f88df08b462",
+    "lines": 140,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/HeroWidgets.tsx",
+    "sha256": "523122ef3cb80b04186836a61fcff03a73df0bc2ec1e1545821b67d7457d0d6e",
+    "lines": 94,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/InteractiveDemoModal.tsx",
+    "sha256": "febd1d95f1eeac5fe03f11854c9c6fb695be286f35de2017354b8db5215c0014",
+    "lines": 171,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/Pricing.tsx",
+    "sha256": "d9f1a09fa08188c71b0c02807a28ad31b9cb824ee3e5ed2ac09ebb9e445c9165",
+    "lines": 135,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/RevenueCalculator.tsx",
+    "sha256": "0504b28702165e50fbea6b9c12fd499699aecbdb62b340c3923d7e1986d36931",
+    "lines": 160,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/SystemShowcase.tsx",
+    "sha256": "5cac010dee17aa530b5973e61e12dd00590d75a4383e2ee7959a81a1266dfa57",
+    "lines": 348,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/Testimonials.tsx",
+    "sha256": "4293ed4466e7765e31f765c4655723936e52144644d6b5eb09e1c7b5d8a3e745",
+    "lines": 118,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/TrustBar.tsx",
+    "sha256": "5d89188604cda5e74679bdbad9ebda3972df73f1c1f695b242cc53b31a3bcfa2",
+    "lines": 143,
+    "methods": [],
+    "requests": [
+      "'/api/public/barbershops')"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/components/landing/WhatsAppAutomation.tsx",
+    "sha256": "b70d64ac0ca7ccc2df0b3cbe2eb4770679ccc9f45698aa7dfc38e47670e1beca",
+    "lines": 143,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/data/landing-content.ts",
+    "sha256": "5471d0f6449afe17f97b000218d0379055307543fbe1fd0fdbff57fb1760f44e",
+    "lines": 349,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/lib/api.ts",
+    "sha256": "52701e06d4fc39e8f5d69a6d96da317b440601e57bace702c2a615a959699dce",
+    "lines": 50,
+    "methods": [],
+    "requests": [
+      "url: string, options: RequestInit = {}): Promise<Response> {",
+      "url, {"
+    ],
+    "diagnostics": []
+  },
+  {
+    "path": "src/lib/auth.ts",
+    "sha256": "ae2203452e129d64ad377726b92a9c06db1da825241f3a58b27816ce7ebe4d38",
+    "lines": 235,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/lib/landing-utils.ts",
+    "sha256": "7cf876e467ee23ed08d8a9057d48145fe95f039fc2d3c4d7a3c6a500688090d2",
+    "lines": 136,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/lib/prisma.ts",
+    "sha256": "151ad0ae388088060982d33bc864eef56bb885863ef372b244de5e5736777f85",
+    "lines": 11,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/middleware.ts",
+    "sha256": "adb045fe72dccc2a93c104b6f3a02f7efe06dc539df7516ddf00f04df36bda4e",
+    "lines": 53,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/schemas/forgotPasswordSchema.ts",
+    "sha256": "8e288e5df1cd91ce07c94897dabdf4473c5830410f4d378d2b8cb2ab33d4b3a6",
+    "lines": 7,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  },
+  {
+    "path": "src/types/index.ts",
+    "sha256": "484993e0dfac2e1883841da04ae77544ff392e2b0742e5fe164138093d271fe2",
+    "lines": 60,
+    "methods": [],
+    "requests": [],
+    "diagnostics": []
+  }
+]

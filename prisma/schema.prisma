@@ -1,0 +1,519 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo para o proprietário do sistema (super admin)
+model SystemOwner {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_owners")
+}
+
+// Modelo para as empresas (barbearias)
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  cpf         String   @unique
+  fullName    String
+  birthDate   DateTime
+  address     String
+  phone       String
+  plan        Plan     @default(MONTHLY)
+  planPrice   Decimal @db.Decimal(12, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  users             User[]
+  services          Service[]
+  employees         Employee[]
+  products          Product[]
+  clients           Client[]
+  appointments      Appointment[]
+  sales             Sale[]
+  whatsappCampaigns WhatsAppCampaign[]
+  settings          CompanySettings?
+  notifications     Notification[]
+
+  @@map("companies")
+}
+
+enum Plan {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+// Modelo para usuários do sistema (administradores das barbearias)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(ADMIN)
+  companyId String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  passwordReset PasswordReset?
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+// Modelo para serviços
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   @default("Cabelo")
+  price       Decimal @db.Decimal(12, 2)
+  duration    Int      // em minutos
+  isActive    Boolean  @default(true)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  serviceCosts ServiceCost[]
+
+  @@map("services")
+}
+
+// Modelo para controle de custos dos serviços
+model ServiceCost {
+  id          String   @id @default(cuid())
+  serviceId   String
+  itemName    String   // Ex: "Tinta", "Shampoo", "Condicionador", "Escova"
+  costPerUse  Decimal @db.Decimal(12, 2)    // Custo por uso/aplicação
+  unit        String   // Ex: "ml", "g", "unidade"
+  supplier    String?  // Fornecedor
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@map("service_costs")
+}
+
+// Modelo para campanhas de recorrência WhatsApp
+model WhatsAppCampaign {
+  id          String    @id @default(cuid())
+  name        String
+  message     String
+  triggerDays Int       // Dias após último agendamento para enviar
+  lastSent    DateTime?
+  isActive    Boolean   @default(true)
+  companyId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relacionamentos
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaignLogs WhatsAppCampaignLog[]
+
+  @@map("whatsapp_campaigns")
+}
+
+// Modelo para log de campanhas enviadas
+model WhatsAppCampaignLog {
+  id           String           @id @default(cuid())
+  campaignId   String
+  clientId     String
+  sentAt       DateTime         @default(now())
+  status       CampaignStatus   @default(SENT)
+  response     String?          // Resposta do cliente, se houver
+  errorMessage String?
+
+  // Relacionamentos
+  campaign WhatsAppCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  client   Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_campaign_logs")
+}
+
+enum CampaignStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  REPLIED
+  FAILED
+}
+
+// Modelo para colaboradores
+model Employee {
+  id             String       @id @default(cuid())
+  name           String
+  email          String?
+  phone          String
+  role           EmployeeRole
+  customRole     String?      // Para roles personalizados
+  salary         Decimal @db.Decimal(12, 2)        @default(0)
+  commissionRate Decimal @db.Decimal(12, 2)        @default(0)
+  hireDate       DateTime
+  isActive       Boolean      @default(true)
+  companyId      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relacionamentos
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  specialties  EmployeeSpecialty[]
+
+  @@map("employees")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
+}
+
+// Modelo para especialidades dos colaboradores
+model EmployeeSpecialty {
+  id         String         @id @default(cuid())
+  employeeId String
+  specialty  String         // Ex: "Tintura", "Corte", "Corte Livre", "Barba", "Sobrancelha"
+  level      SpecialtyLevel @default(INTERMEDIATE)
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+
+  // Relacionamentos
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, specialty])
+  @@map("employee_specialties")
+}
+
+enum SpecialtyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum EmployeeRole {
+  BARBER
+  ADMIN
+  MARKETING
+  GENERAL_SERVICES
+  PODIATRY
+  MASSAGE
+  OTHER
+}
+
+// Modelo para produtos
+model Product {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  category    ProductCategory
+  price       Decimal @db.Decimal(12, 2)
+  stock       Int
+  minStock    Int
+  isActive    Boolean         @default(true)
+  companyId   String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relacionamentos
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  saleItems SaleItem[]
+
+  @@map("products")
+}
+
+enum ProductCategory {
+  BEVERAGES
+  SNACKS
+  GAMES
+  OTHER
+}
+
+// Modelo para clientes
+model Client {
+  id          String    @id @default(cuid())
+  fullName    String
+  phone       String
+  email       String?
+  address     String?
+  birthDate   DateTime?
+  notes       String?
+  totalVisits Int       @default(0)
+  totalSpent  Decimal @db.Decimal(12, 2)     @default(0)
+  rating      Float?    @default(5)
+  isActive    Boolean   @default(true)
+  whatsappConsent Boolean @default(false)
+  companyId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relacionamentos
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  sales        Sale[]
+  campaignLogs WhatsAppCampaignLog[]
+
+  @@index([companyId, phone], map: "clients_company_phone_idx")
+  @@map("clients")
+}
+
+// Modelo para agendamentos
+model Appointment {
+  id         String            @id @default(cuid())
+  date       DateTime
+  time       String
+  status     AppointmentStatus @default(SCHEDULED)
+  notes      String?
+  price      Decimal @db.Decimal(12, 2)
+  clientId   String
+  serviceId  String
+  employeeId String
+  companyId  String
+  confirmationHash String? @unique
+  confirmationExpiresAt DateTime?
+  duration Int @default(30)
+  idempotencyKey String? @unique
+  serviceNameSnapshot String @default("")
+  employeeNameSnapshot String @default("")
+  costSnapshot Decimal @db.Decimal(12, 2) @default(0)
+  commissionSnapshot Decimal @db.Decimal(12, 2) @default(0)
+  snapshotEstimated Boolean @default(false)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  // Relacionamentos
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sales    Sale[]
+
+  @@index([companyId, employeeId, date], map: "appointments_company_employee_date_idx")
+  @@map("appointments")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// Modelo para vendas
+model Sale {
+  id            String            @id @default(cuid())
+  type          SaleType
+  description   String
+  amount        Decimal @db.Decimal(12, 2)
+  paymentMethod PaymentMethod
+  status        SalePaymentStatus @default(COMPLETED)
+  proofUrl      String?
+  appointmentId String?
+  clientId      String?
+  companyId     String
+  idempotencyKey String? @unique
+  stockDebited Boolean @default(false)
+  refundedAt DateTime?
+  refundReason String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // Relacionamentos
+  client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  saleItems   SaleItem[]
+
+  @@index([companyId, createdAt], map: "sales_company_createdAt_idx")
+  @@map("sales")
+}
+
+enum SaleType {
+  SERVICE
+  PRODUCT
+}
+
+enum PaymentMethod {
+  CASH
+  PIX
+  DEBIT_CARD
+  CREDIT_CARD
+}
+
+enum SalePaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  REFUNDED
+}
+
+// Modelo para itens de venda (produtos)
+model SaleItem {
+  id         String   @id @default(cuid())
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(12, 2)
+  totalPrice Decimal @db.Decimal(12, 2)
+  saleId     String
+  productId  String
+  createdAt  DateTime @default(now())
+
+  // Relacionamentos
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("sale_items")
+}
+
+// Modelo para configurações da empresa
+model CompanySettings {
+  id                 String   @id @default(cuid())
+  companyId          String   @unique
+  businessHours      Json     // Horários de funcionamento
+  appointmentConfig  Json     // Configurações de agendamento
+  whatsappConfig     Json?    // Configurações do WhatsApp
+  locationConfig     Json?    // Configurações de localização
+  notificationConfig Json?    // Configurações de notificações
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relacionamentos
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_settings")
+}
+
+// Modelo para notificações
+model Notification {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  userId    String?
+  companyId String?
+  createdAt DateTime         @default(now())
+
+  // Relacionamentos
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum NotificationType {
+  APPOINTMENT
+  PAYMENT
+  SYSTEM
+  MARKETING
+}
+
+model AuthSession {
+  id String @id @default(cuid())
+  subjectId String
+  subjectType String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([subjectId, subjectType])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model RateLimitBucket {
+  id String @id
+  count Int @default(1)
+  expiresAt DateTime
+  @@index([expiresAt])
+  @@map("rate_limit_buckets")
+}
+
+model RecoveryToken {
+  id String @id @default(cuid())
+  subjectId String
+  subjectType String
+  tokenHash String @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([subjectId, subjectType])
+  @@index([expiresAt])
+  @@map("recovery_tokens")
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  companyId String?
+  actorId String
+  action String
+  entityId String
+  createdAt DateTime @default(now())
+  @@index([companyId, createdAt])
+  @@map("audit_logs")
+}
+
+model StockMovement {
+  id String @id @default(cuid())
+  companyId String
+  productId String
+  saleId String
+  quantity Int
+  reason String
+  createdAt DateTime @default(now())
+  @@index([companyId, productId, createdAt])
+  @@map("stock_movements")
+}
+
+model OutboundMessage {
+  id String @id @default(cuid())
+  companyId String
+  clientId String?
+  campaignId String?
+  to String
+  message String
+  status String @default("QUEUED")
+  dedupKey String @unique
+  providerId String? @unique
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  @@index([status, nextAttemptAt])
+  @@map("outbound_messages")
+}

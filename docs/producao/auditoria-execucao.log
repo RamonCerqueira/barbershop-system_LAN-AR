@@ -1,0 +1,163 @@
+{
+  "generatedAt": "2026-10-30T12:26:25.735Z",
+  "mode": "isolated-real-handlers-with-mocked-adapters",
+  "externalCalls": 0,
+  "databaseWrites": 0,
+  "disclaimer": "Not E2E. REPRODUCED findings represent failures of production requirements. CONTRACT checks only confirm the isolated handler behavior.",
+  "results": [
+    {
+      "id": "SEC-01",
+      "area": "Seed",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Anonymous GET reaches four upserts, including default password replacement."
+    },
+    {
+      "id": "SEC-02",
+      "area": "Password recovery",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Unauthenticated response contains the password reset code."
+    },
+    {
+      "id": "SEC-03",
+      "area": "Client history",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "GET without phone/email queries appointments with an empty where filter."
+    },
+    {
+      "id": "SEC-04",
+      "area": "Confirmation",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "An ID alone authorizes a public status change; no token or prior-state check."
+    },
+    {
+      "id": "BOOK-01",
+      "area": "Public booking",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Only exact start time is queried; employee ownership is never loaded or validated."
+    },
+    {
+      "id": "BOOK-02",
+      "area": "Rescheduling",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Reschedule accepts foreign relation IDs without loading related entities or checking conflicts."
+    },
+    {
+      "id": "CASH-01",
+      "area": "Stock and sale",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Negative quantity reaches stock decrement; amount=1 accepted independently of item prices."
+    },
+    {
+      "id": "CASH-02",
+      "area": "Sale removal",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Deletion completes with only a sale.delete call; no stock, client balance or audit reversal."
+    },
+    {
+      "id": "MSG-01",
+      "area": "WhatsApp send",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Anonymous request without provider credentials returns success and DELIVERED."
+    },
+    {
+      "id": "AUTH-01",
+      "area": "Session revocation",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Verified payload is accepted without querying active user/company or a revocation record."
+    },
+    {
+      "id": "AUTH-02",
+      "area": "Middleware signature",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Unsigned fabricated token passes the page middleware; this does not demonstrate API bypass."
+    },
+    {
+      "id": "SIGNUP-01",
+      "area": "Company signup",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Server accepts a one-character password and CPF with invalid check digits; frontend validation is not enforced here."
+    },
+    {
+      "id": "SETTINGS-01",
+      "area": "Settings",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "Saving only business hours also replaces locationConfig with empty description/website."
+    },
+    {
+      "id": "MSG-02",
+      "area": "Campaign dispatch",
+      "kind": "FINDING",
+      "status": "REPRODUCED",
+      "evidence": "A newly created client receives a DELIVERED log through fallback targeting, without any provider call."
+    },
+    {
+      "id": "COSTS-01",
+      "area": "Service costs",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Service cost creation checks service ownership before writing; real margin calculation remains unverified."
+    },
+    {
+      "id": "NOTIFY-01",
+      "area": "Notifications",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Company notification listing includes the authenticated company filter."
+    },
+    {
+      "id": "ADMIN-01",
+      "area": "System administration",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Company user is rejected with 403 by the system owner overview handler."
+    },
+    {
+      "id": "PUBLIC-01",
+      "area": "Barbershop search",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Public search limits companies to active ones and searches name, address and services."
+    },
+    {
+      "id": "CRUD-services",
+      "area": "Services",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Create handler returns 201 and injects company from authentication; database and UI not exercised."
+    },
+    {
+      "id": "CRUD-employees",
+      "area": "Employees",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Create handler returns 201 and injects company from authentication; database and UI not exercised."
+    },
+    {
+      "id": "CRUD-products",
+      "area": "Products",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Create handler returns 201 and injects company from authentication; database and UI not exercised."
+    },
+    {
+      "id": "CRUD-clients",
+      "area": "Clients",
+      "kind": "CONTRACT",
+      "status": "REPRODUCED",
+      "evidence": "Create handler returns 201 and injects company from authentication; database and UI not exercised."
+    }
+  ]
+}

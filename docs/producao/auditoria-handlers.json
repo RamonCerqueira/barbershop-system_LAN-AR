@@ -1,0 +1,163 @@
+{
+  "generatedAt": "2026-10-31T21:52:45.636Z",
+  "mode": "isolated-real-handlers-with-mocked-adapters",
+  "externalCalls": 0,
+  "databaseWrites": 0,
+  "disclaimer": "Not E2E. REPRODUCED findings represent failures of production requirements. CONTRACT checks only confirm the isolated handler behavior.",
+  "results": [
+    {
+      "id": "SEC-01",
+      "area": "Seed",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "SEC-02",
+      "area": "Password recovery",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "SEC-03",
+      "area": "Client history",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "SEC-04",
+      "area": "Confirmation",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "BOOK-01",
+      "area": "Public booking",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "BOOK-02",
+      "area": "Rescheduling",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "CASH-01",
+      "area": "Stock and sale",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "CASH-02",
+      "area": "Sale removal",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "MSG-01",
+      "area": "WhatsApp send",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "AUTH-01",
+      "area": "Session revocation",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: ./security"
+    },
+    {
+      "id": "AUTH-02",
+      "area": "Middleware signature",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Expected values to be strictly equal:\n\nundefined !== 200\n"
+    },
+    {
+      "id": "SIGNUP-01",
+      "area": "Company signup",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "SETTINGS-01",
+      "area": "Settings",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "MSG-02",
+      "area": "Campaign dispatch",
+      "kind": "FINDING",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/messages"
+    },
+    {
+      "id": "COSTS-01",
+      "area": "Service costs",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "NOTIFY-01",
+      "area": "Notifications",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "ADMIN-01",
+      "area": "System administration",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "PUBLIC-01",
+      "area": "Barbershop search",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/json"
+    },
+    {
+      "id": "CRUD-services",
+      "area": "Services",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/validation"
+    },
+    {
+      "id": "CRUD-employees",
+      "area": "Employees",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/validation"
+    },
+    {
+      "id": "CRUD-products",
+      "area": "Products",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/validation"
+    },
+    {
+      "id": "CRUD-clients",
+      "area": "Clients",
+      "kind": "CONTRACT",
+      "status": "AUDIT_ERROR",
+      "evidence": "Unexpected import: @/lib/validation"
+    }
+  ]
+}
