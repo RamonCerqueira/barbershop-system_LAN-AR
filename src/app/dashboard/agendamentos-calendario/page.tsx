@@ -35,6 +35,8 @@ interface Appointment {
 interface EmployeeOption {
   id: string
   name: string
+  role?: string
+  isActive?: boolean
 }
 
 interface ServiceOption {
@@ -42,6 +44,7 @@ interface ServiceOption {
   name: string
   duration: number
   price: number
+  isActive?: boolean
 }
 
 const statusColors: Record<string, string> = {
@@ -125,8 +128,22 @@ export default function AgendamentosCalendario() {
       ])
 
       if (aptRes.ok) setAppointments(await aptRes.json())
-      if (empRes.ok) setEmployees(await empRes.json())
-      if (svcRes.ok) setServices(await svcRes.json())
+      if (empRes.ok) {
+        const empData = await empRes.json()
+        setEmployees(
+          Array.isArray(empData)
+            ? empData.filter(
+              (e: EmployeeOption) =>
+                e.isActive !== false &&
+                (!e.role || ['BARBER', 'PODIATRY', 'MASSAGE'].includes(e.role))
+            )
+            : []
+        )
+      }
+      if (svcRes.ok) {
+        const svcData = await svcRes.json()
+        setServices(Array.isArray(svcData) ? svcData.filter((s: ServiceOption) => s.isActive !== false) : [])
+      }
     } catch (error) {
       console.error('Erro ao carregar calendário:', error)
     }
@@ -190,6 +207,9 @@ export default function AgendamentosCalendario() {
           prev.map((a) => (a.id === appointmentId ? updated : a))
         )
         setSelectedAppointment(updated)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        alert(err.error || 'Alteração de status não permitida.')
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error)

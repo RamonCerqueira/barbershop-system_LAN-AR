@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = clientInput.parse(await request.json())
-    const { fullName, phone, email, address, birthDate, notes, rating, isActive } = body
+    const { fullName, phone, email, address, birthDate, notes, rating, whatsappConsent, isActive } = body
 
     if (!fullName || !phone) {
       return jsonResponse(
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         birthDate: birthDate ? new Date(birthDate) : null,
         notes: notes ? String(notes).trim() : null,
         rating: rating !== undefined ? Number(rating) : null,
+        whatsappConsent: whatsappConsent !== undefined ? Boolean(whatsappConsent) : false,
         isActive: isActive !== undefined ? Boolean(isActive) : true,
         companyId: auth.companyId
       }

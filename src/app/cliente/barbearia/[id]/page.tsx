@@ -65,8 +65,11 @@ export default function BarbeariaDetalhes() {
   const [clientPhone, setClientPhone] = useState('')
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [bookingKey] = useState(() => crypto.randomUUID())
-  useEffect(() => setSelectedTime(''), [selectedDate, selectedService?.id, selectedBarber?.id])
+  const [bookingKey, setBookingKey] = useState(() => crypto.randomUUID())
+  useEffect(() => {
+    setSelectedTime('')
+    setBookingKey(crypto.randomUUID())
+  }, [selectedDate, selectedService?.id, selectedBarber?.id])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -111,8 +114,12 @@ export default function BarbeariaDetalhes() {
       alert('Selecione serviço, profissional, data e horário.')
       return
     }
-    if (!clientName || !clientPhone) {
+    if (!clientName.trim() || !clientPhone.trim()) {
       alert('Informe seu nome e telefone para confirmar o agendamento.')
+      return
+    }
+    if (clientPhone.replace(/\D/g, '').length < 10) {
+      alert('Informe um telefone válido com DDD (10 ou 11 dígitos).')
       return
     }
 
@@ -174,7 +181,7 @@ export default function BarbeariaDetalhes() {
   const availableSlotsForBarber = barbershop.availableTimes.filter((slot) => {
     if (!selectedBarber) return true
     return !barbershop.bookedSlots.some(
-      (b) => ((Number(slot.slice(0,2))*60+Number(slot.slice(3))) < (Number(b.time.slice(0,2))*60+Number(b.time.slice(3))) + b.duration && (Number(b.time.slice(0,2))*60+Number(b.time.slice(3))) < (Number(slot.slice(0,2))*60+Number(slot.slice(3))) + (selectedService?.duration || 30)) && b.employeeId === selectedBarber.id
+      (b) => ((Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3))) < (Number(b.time.slice(0, 2)) * 60 + Number(b.time.slice(3))) + b.duration && (Number(b.time.slice(0, 2)) * 60 + Number(b.time.slice(3))) < (Number(slot.slice(0, 2)) * 60 + Number(slot.slice(3))) + (selectedService?.duration || 30)) && b.employeeId === selectedBarber.id
     )
   })
 

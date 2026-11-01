@@ -363,7 +363,7 @@ export default function Login() {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código de 6 dígitos
+                    Código de Recuperação
                   </label>
                   <input
                     type="text"
@@ -371,7 +371,7 @@ export default function Login() {
                     value={resetCode}
                     onChange={(e) => setResetCode(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-500"
-                    placeholder="000000"
+                    placeholder="Cole o código enviado por e-mail"
                   />
                 </div>
                 <div>
@@ -381,11 +381,11 @@ export default function Login() {
                   <input
                     type="password"
                     required
-                    minLength={12}
+                    minLength={8}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-500"
-                    placeholder="Mínimo de 6 caracteres"
+                    placeholder="8+ caracteres, letra, número e símbolo"
                   />
                 </div>
                 <div className="flex justify-end space-x-2 pt-2">

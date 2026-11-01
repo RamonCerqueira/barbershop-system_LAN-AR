@@ -56,6 +56,7 @@ export async function PUT(
               : null
             : existing.notes,
         rating: body.rating !== undefined ? Number(body.rating) : existing.rating,
+        whatsappConsent: body.whatsappConsent !== undefined ? Boolean(body.whatsappConsent) : existing.whatsappConsent,
         isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive
       }
     })

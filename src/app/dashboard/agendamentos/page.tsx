@@ -40,6 +40,8 @@ interface SelectOption {
   fullName?: string
   phone?: string
   price?: number
+  role?: string
+  isActive?: boolean
 }
 
 const getLocalDateStr = (d = new Date()) => {
@@ -90,9 +92,26 @@ export default function Agendamentos() {
       ])
 
       if (aptRes.ok) setAppointments(await aptRes.json())
-      if (cliRes.ok) setClients(await cliRes.json())
-      if (svcRes.ok) setServices(await svcRes.json())
-      if (empRes.ok) setEmployees(await empRes.json())
+      if (cliRes.ok) {
+        const cliData = await cliRes.json()
+        setClients(Array.isArray(cliData) ? cliData.filter((c: SelectOption) => c.isActive !== false) : [])
+      }
+      if (svcRes.ok) {
+        const svcData = await svcRes.json()
+        setServices(Array.isArray(svcData) ? svcData.filter((s: SelectOption) => s.isActive !== false) : [])
+      }
+      if (empRes.ok) {
+        const empData = await empRes.json()
+        setEmployees(
+          Array.isArray(empData)
+            ? empData.filter(
+                (e: SelectOption) =>
+                  e.isActive !== false &&
+                  (!e.role || ['BARBER', 'PODIATRY', 'MASSAGE'].includes(e.role))
+              )
+            : []
+        )
+      }
     } catch (error) {
       console.error('Erro ao carregar dados de agendamentos:', error)
     } finally {
@@ -140,14 +159,34 @@ export default function Agendamentos() {
     setSaving(true)
 
     try {
+      const payload: Record<string, unknown> = {
+        serviceId: formData.serviceId,
+        employeeId: formData.employeeId,
+        date: formData.date,
+        time: formData.time,
+        status: editingApt
+          ? formData.status
+          : ['SCHEDULED', 'CONFIRMED'].includes(formData.status)
+            ? formData.status
+            : 'SCHEDULED',
+        notes: formData.notes
+      }
+
+      if (formData.clientId) {
+        payload.clientId = formData.clientId
+      } else {
+        payload.clientName = formData.clientName
+        payload.clientPhone = formData.clientPhone
+      }
+
       const res = editingApt
         ? await apiFetch(`/api/appointments/${editingApt.id}`, {
             method: 'PATCH',
-            body: JSON.stringify(formData)
+            body: JSON.stringify(payload)
           })
         : await apiFetch('/api/appointments', {
             method: 'POST',
-            body: JSON.stringify(formData)
+            body: JSON.stringify(payload)
           })
 
       if (!res.ok) {
@@ -172,6 +211,9 @@ export default function Agendamentos() {
       })
       if (res.ok) {
         await loadData()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        alert(err.error || 'Não foi possível alterar o status deste agendamento.')
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
@@ -438,9 +480,15 @@ export default function Agendamentos() {
                           Confirmar
                         </button>
                       )}
-                      {['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS'].includes(
-                        appointment.status
-                      ) && (
+                      {['SCHEDULED', 'CONFIRMED'].includes(appointment.status) && (
+                        <button
+                          onClick={() => handleStatusChange(appointment.id, 'IN_PROGRESS')}
+                          className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white text-xs rounded-lg font-medium"
+                        >
+                          Iniciar
+                        </button>
+                      )}
+                      {appointment.status === 'IN_PROGRESS' && (
                         <button
                           onClick={() => handleStatusChange(appointment.id, 'COMPLETED')}
                           className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs rounded-lg font-medium"
@@ -607,10 +655,14 @@ export default function Agendamentos() {
                   >
                     <option value="SCHEDULED">Agendado</option>
                     <option value="CONFIRMED">Confirmado</option>
-                    <option value="IN_PROGRESS">Em andamento</option>
-                    <option value="COMPLETED">Concluído</option>
-                    <option value="CANCELLED">Cancelado</option>
-                    <option value="NO_SHOW">Não compareceu</option>
+                    {editingApt && (
+                      <>
+                        <option value="IN_PROGRESS">Em andamento</option>
+                        <option value="COMPLETED">Concluído</option>
+                        <option value="CANCELLED">Cancelado</option>
+                        <option value="NO_SHOW">Não compareceu</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>

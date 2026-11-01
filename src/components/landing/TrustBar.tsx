@@ -21,8 +21,14 @@ export function TrustBar() {
     fetch('/api/public/barbershops')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!mounted || !data || !Array.isArray(data.barbershops)) return;
-        const barbershops = data.barbershops as Array<{ services?: Array<unknown> }>;
+        if (!mounted || !data) return;
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data.barbershops)
+            ? data.barbershops
+            : null;
+        if (!list) return;
+        const barbershops = list as Array<{ services?: Array<unknown> }>;
         const servicesCount = barbershops.reduce(
           (acc, shop) => acc + (Array.isArray(shop.services) ? shop.services.length : 0),
           0

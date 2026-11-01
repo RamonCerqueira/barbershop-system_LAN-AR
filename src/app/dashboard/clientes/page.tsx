@@ -27,6 +27,7 @@ interface Client {
   totalSpent: number
   lastVisit: string | null
   rating: number | null
+  whatsappConsent?: boolean
   isActive: boolean
   createdAt: string
 }
@@ -45,6 +46,7 @@ export default function Clientes() {
     birthDate: '',
     address: '',
     notes: '',
+    whatsappConsent: true,
     isActive: true
   })
 
@@ -79,6 +81,7 @@ export default function Clientes() {
           : '',
         address: client.address || '',
         notes: client.notes || '',
+        whatsappConsent: Boolean(client.whatsappConsent),
         isActive: client.isActive
       })
     } else {
@@ -90,6 +93,7 @@ export default function Clientes() {
         birthDate: '',
         address: '',
         notes: '',
+        whatsappConsent: true,
         isActive: true
       })
     }
@@ -390,6 +394,20 @@ export default function Clientes() {
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
                   rows={2}
                 />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  id="whatsappConsent"
+                  type="checkbox"
+                  checked={formData.whatsappConsent}
+                  onChange={(e) =>
+                    setFormData({ ...formData, whatsappConsent: e.target.checked })
+                  }
+                  className="h-4 w-4 accent-orange-500 rounded"
+                />
+                <label htmlFor="whatsappConsent" className="text-sm text-gray-300 cursor-pointer">
+                  Cliente autoriza comunicações e lembretes por WhatsApp
+                </label>
               </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <button

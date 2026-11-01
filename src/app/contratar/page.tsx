@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { ArrowLeft, Check, CreditCard, Building, User } from 'lucide-react';
 import Link from 'next/link';
 import { trackConversionEvent } from '@/lib/landing-utils';
-import { passwordInput } from '@/lib/validation';
+import { passwordInput, validCpf } from '@/lib/validation';
 
 // Schema de validação com Zod
 const contractSchema = z.object({
@@ -15,13 +15,20 @@ const contractSchema = z.object({
   cpf: z.string()
     .min(11, 'CPF deve ter 11 dígitos')
     .max(14, 'CPF inválido')
-    .regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF inválido'),
+    .regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF inválido')
+    .refine((val) => validCpf(val.replace(/\D/g, '')), 'CPF inválido (verifique os dígitos)'),
   fullName: z.string()
+    .trim()
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(100, 'Nome muito longo'),
   birthDate: z.string()
-    .min(1, 'Data de nascimento é obrigatória'),
+    .min(1, 'Data de nascimento é obrigatória')
+    .refine(
+      (val) => /^\d{4}-\d{2}-\d{2}$/.test(val) && val < new Date().toISOString().slice(0, 10),
+      'Informe uma data de nascimento válida no passado'
+    ),
   email: z.string()
+    .trim()
     .email('Email inválido')
     .min(1, 'Email é obrigatório'),
   password: passwordInput,
@@ -29,22 +36,30 @@ const contractSchema = z.object({
 
   // Dados da barbearia
   barbershopName: z.string()
+    .trim()
     .min(2, 'Nome da barbearia deve ter pelo menos 2 caracteres')
     .max(100, 'Nome muito longo'),
   street: z.string()
+    .trim()
     .min(5, 'Endereço deve ter pelo menos 5 caracteres'),
   number: z.string()
+    .trim()
     .min(1, 'Número é obrigatório'),
   complement: z.string().optional(),
   neighborhood: z.string()
+    .trim()
     .min(2, 'Bairro deve ter pelo menos 2 caracteres'),
   city: z.string()
+    .trim()
     .min(2, 'Cidade deve ter pelo menos 2 caracteres'),
   state: z.string()
+    .trim()
     .min(2, 'Estado deve ter pelo menos 2 caracteres'),
   zipCode: z.string()
     .regex(/^\d{5}-?\d{3}$/, 'CEP inválido'),
-  phone: z.string().min(10, 'Telefone obrigatório'),
+  phone: z.string()
+    .min(10, 'Telefone obrigatório')
+    .refine((val) => /^\d{10,15}$/.test(val.replace(/\D/g, '')), 'Telefone inválido (informe DDD + número)'),
 
   // Plano selecionado
   plan: z.enum(['monthly', 'quarterly', 'annual']),
@@ -70,6 +85,7 @@ export default function ContractPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'quarterly' | 'annual'>('annual');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const {
     register,
@@ -83,10 +99,12 @@ export default function ContractPage() {
     defaultValues: {
       plan: selectedPlan,
       acceptTerms: false,
+      phone: '',
     },
   });
 
   const watchedPlan = watch('plan');
+  const watchedData = watch();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -104,22 +122,37 @@ export default function ContractPage() {
   }, [setValue]);
 
   const formatCPF = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    const numbers = value.replace(/\D/g, '').slice(0, 11);
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+    if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
   };
 
   const formatZipCode = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    return numbers.replace(/(\d{5})(\d{3})/, '$1-$2');
+    const numbers = value.replace(/\D/g, '').slice(0, 8);
+    if (numbers.length <= 5) return numbers;
+    return `${numbers.slice(0, 5)}-${numbers.slice(5, 8)}`;
+  };
+
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '').slice(0, 11);
+    if (numbers.length <= 2) return numbers;
+    if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length <= 10) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
   };
 
   const nextStep = async () => {
+    setSubmitError('');
     let fieldsToValidate: (keyof ContractFormData)[] = [];
 
     if (currentStep === 1) {
       fieldsToValidate = ['cpf', 'fullName', 'birthDate', 'email', 'password', 'confirmPassword'];
     } else if (currentStep === 2) {
-      fieldsToValidate = ['barbershopName', 'street', 'number', 'neighborhood', 'city', 'state', 'zipCode'];
+      fieldsToValidate = ['barbershopName', 'phone', 'street', 'number', 'neighborhood', 'city', 'state', 'zipCode'];
+    } else if (currentStep === 3) {
+      fieldsToValidate = ['plan'];
     }
 
     const isValid = await trigger(fieldsToValidate);
@@ -129,13 +162,18 @@ export default function ContractPage() {
   };
 
   const prevStep = () => {
+    setSubmitError('');
     setCurrentStep(currentStep - 1);
   };
 
   const onSubmit = async (data: ContractFormData) => {
     setIsSubmitting(true);
+    setSubmitError('');
 
     try {
+      const complementPart = data.complement?.trim() ? ` (${data.complement.trim()})` : '';
+      const fullAddress = `${data.street}, ${data.number}${complementPart} - ${data.neighborhood}, ${data.city}/${data.state} - ${data.zipCode}`;
+
       const response = await fetch('/api/companies/register', {
         method: 'POST',
         headers: {
@@ -147,8 +185,8 @@ export default function ContractPage() {
           cpf: data.cpf.replace(/\D/g, ''),
           fullName: data.fullName,
           birthDate: data.birthDate,
-          address: `${data.street}, ${data.number} - ${data.neighborhood}, ${data.city}/${data.state} - ${data.zipCode}`,
-          phone: data.phone,
+          address: fullAddress,
+          phone: data.phone.replace(/\D/g, ''),
           plan: data.plan.toUpperCase(),
           password: data.password,
           acceptTerms: data.acceptTerms
@@ -158,8 +196,6 @@ export default function ContractPage() {
       const result = await response.json();
 
       if (response.ok) {
-        if (result.token) {
-        }
         if (result.user) {
           localStorage.setItem('user', JSON.stringify(result.user));
         }
@@ -175,10 +211,13 @@ export default function ContractPage() {
         alert('Contratação realizada com sucesso! Redirecionando para o painel administrativo...');
         window.location.href = '/dashboard';
       } else {
-        alert(`Erro: ${result.error}`);
+        const errorMessage = result.error || 'Não foi possível concluir o cadastro. Verifique os dados informados.';
+        setSubmitError(errorMessage);
+        alert(`Erro: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Erro na contratação:', error);
+      setSubmitError('Erro interno de conexão. Tente novamente mais tarde.');
       alert('Erro interno. Tente novamente mais tarde.');
     } finally {
       setIsSubmitting(false);
@@ -233,11 +272,13 @@ export default function ContractPage() {
                     <input
                       {...register('cpf')}
                       type="text"
+                      maxLength={14}
                       placeholder="000.000.000-00"
                       className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
                       onChange={(e) => {
                         const formatted = formatCPF(e.target.value);
-                        setValue('cpf', formatted);
+                        e.target.value = formatted;
+                        setValue('cpf', formatted, { shouldValidate: true, shouldDirty: true });
                       }}
                     />
                     {errors.cpf && <p className="text-red-400 text-sm mt-1">{errors.cpf.message}</p>}
@@ -310,15 +351,34 @@ export default function ContractPage() {
                 </div>
 
                 <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Nome da Barbearia *</label>
-                    <input
-                      {...register('barbershopName')}
-                      type="text"
-                      placeholder="Nome da sua barbearia"
-                      className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
-                    />
-                    {errors.barbershopName && <p className="text-red-400 text-sm mt-1">{errors.barbershopName.message}</p>}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Nome da Barbearia *</label>
+                      <input
+                        {...register('barbershopName')}
+                        type="text"
+                        placeholder="Nome da sua barbearia"
+                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
+                      />
+                      {errors.barbershopName && <p className="text-red-400 text-sm mt-1">{errors.barbershopName.message}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Telefone / WhatsApp *</label>
+                      <input
+                        {...register('phone')}
+                        type="tel"
+                        maxLength={15}
+                        placeholder="(11) 99999-9999"
+                        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
+                        onChange={(e) => {
+                          const formatted = formatPhone(e.target.value);
+                          e.target.value = formatted;
+                          setValue('phone', formatted, { shouldValidate: true, shouldDirty: true });
+                        }}
+                      />
+                      {errors.phone && <p className="text-red-400 text-sm mt-1">{errors.phone.message}</p>}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -396,11 +456,13 @@ export default function ContractPage() {
                       <input
                         {...register('zipCode')}
                         type="text"
+                        maxLength={9}
                         placeholder="00000-000"
                         className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-orange-500 focus:outline-none"
                         onChange={(e) => {
                           const formatted = formatZipCode(e.target.value);
-                          setValue('zipCode', formatted);
+                          e.target.value = formatted;
+                          setValue('zipCode', formatted, { shouldValidate: true, shouldDirty: true });
                         }}
                       />
                       {errors.zipCode && <p className="text-red-400 text-sm mt-1">{errors.zipCode.message}</p>}
@@ -470,19 +532,59 @@ export default function ContractPage() {
                 <div className="space-y-6">
                   <div className="bg-gray-800 p-6 rounded-lg">
                     <h3 className="text-lg font-semibold mb-4">Resumo da Contratação</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span>Plano:</span>
-                        <span>{plans[watchedPlan].name}</span>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between py-1 border-b border-gray-700">
+                        <span className="text-gray-400">Responsável:</span>
+                        <span className="font-medium">{watchedData.fullName}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-700">
+                        <span className="text-gray-400">CPF / E-mail:</span>
+                        <span className="font-medium">{watchedData.cpf} • {watchedData.email}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-700">
+                        <span className="text-gray-400">Barbearia:</span>
+                        <span className="font-medium">{watchedData.barbershopName}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-700">
+                        <span className="text-gray-400">Telefone / WhatsApp:</span>
+                        <span className="font-medium">{watchedData.phone}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-gray-700">
+                        <span className="text-gray-400">Endereço:</span>
+                        <span className="font-medium text-right">
+                          {watchedData.street}, {watchedData.number}
+                          {watchedData.complement ? ` (${watchedData.complement})` : ''} - {watchedData.neighborhood}, {watchedData.city}/{watchedData.state}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-2">
+                        <span className="text-gray-400">Plano:</span>
+                        <span className="font-medium">{plans[watchedPlan].name}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Valor:</span>
-                        <span className="text-orange-500 font-bold">
+                        <span className="text-gray-400">Valor:</span>
+                        <span className="text-orange-500 font-bold text-base">
                           R$ {plans[watchedPlan].price}/{plans[watchedPlan].period}
                         </span>
                       </div>
                     </div>
                   </div>
+
+                  {submitError && (
+                    <div role="alert" className="bg-red-500/10 border border-red-500/30 p-4 rounded-lg text-red-400 text-sm">
+                      {submitError}
+                    </div>
+                  )}
+
+                  {Object.keys(errors).length > 0 && (
+                    <div role="alert" className="bg-red-500/10 border border-red-500/30 p-4 rounded-lg text-red-400 text-sm space-y-1">
+                      <p className="font-semibold">Verifique os campos pendentes antes de finalizar:</p>
+                      <ul className="list-disc list-inside">
+                        {Object.entries(errors).map(([field, err]) => (
+                          <li key={field}>{err?.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <div className="flex items-start">
                     <input

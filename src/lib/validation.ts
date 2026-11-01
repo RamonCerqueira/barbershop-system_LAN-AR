@@ -25,12 +25,15 @@ export const companyInput = z.object({
 })
 export const bookingInput = z.object({
   companyId: z.string().min(1).optional(), serviceId: z.string().min(1), employeeId: z.string().min(1),
-  clientId: z.string().min(1).optional(), clientName: z.string().trim().min(2).max(100).optional(), clientPhone: phoneInput.optional(),
-  clientEmail: emailInput.optional(), date: dateInput, time: timeInput, notes: z.string().trim().max(1000).optional(),
+  clientId: z.preprocess(v => v === '' ? undefined : v, z.string().min(1).optional()),
+  clientName: z.preprocess(v => v === '' ? undefined : v, z.string().trim().min(2).max(100).optional()),
+  clientPhone: z.preprocess(v => v === '' ? undefined : v, phoneInput.optional()),
+  clientEmail: z.preprocess(v => v === '' ? undefined : v, emailInput.optional()),
+  date: dateInput, time: timeInput, notes: z.string().trim().max(1000).optional(),
   price: moneyInput.optional(), status: z.enum(['SCHEDULED','CONFIRMED']).optional()
 })
 
 export const serviceInput = z.object({ name: z.string().trim().min(2).max(100), description: z.string().trim().max(2000).nullable().optional(), category: z.string().trim().min(1).max(50).optional(), price: moneyInput, duration: z.coerce.number().int().min(1).max(720), isActive: z.boolean().optional() })
 export const productInput = z.object({ name: z.string().trim().min(2).max(100), description: z.string().trim().max(2000).nullable().optional(), category: z.string().max(30).optional(), price: moneyInput, stock: z.coerce.number().int().min(0).max(1_000_000).optional(), minStock: z.coerce.number().int().min(0).max(1_000_000).optional(), isActive: z.boolean().optional() })
-export const clientInput = z.object({ fullName: z.string().trim().min(2).max(100), phone: phoneInput, email: z.union([emailInput,z.literal('')]).nullable().optional(), address: z.string().max(500).nullable().optional(), birthDate: z.union([dateInput,z.literal('')]).nullable().optional(), notes: z.string().max(2000).nullable().optional(), rating: z.coerce.number().min(0).max(5).optional(), isActive: z.boolean().optional() })
+export const clientInput = z.object({ fullName: z.string().trim().min(2).max(100), phone: phoneInput, email: z.union([emailInput,z.literal('')]).nullable().optional(), address: z.string().max(500).nullable().optional(), birthDate: z.union([dateInput,z.literal('')]).nullable().optional(), notes: z.string().max(2000).nullable().optional(), rating: z.coerce.number().min(0).max(5).optional(), whatsappConsent: z.boolean().optional(), isActive: z.boolean().optional() })
 export const employeeInput = z.object({ name: z.string().trim().min(2).max(100), phone: phoneInput, email: z.union([emailInput,z.literal('')]).nullable().optional(), role: z.enum(['BARBER','ADMIN','MARKETING','GENERAL_SERVICES','PODIATRY','MASSAGE','OTHER']).optional(), customRole: z.string().max(100).nullable().optional(), salary: moneyInput.optional(), commissionRate: z.coerce.number().min(0).max(100).optional(), hireDate: z.union([dateInput,z.literal('')]).optional(), isActive: z.boolean().optional(), specialties: z.array(z.union([z.string().trim().min(1).max(100),z.object({specialty:z.string().trim().min(1).max(100),level:z.enum(['BEGINNER','INTERMEDIATE','ADVANCED','EXPERT']).optional(),isActive:z.boolean().optional()})])).max(100).optional() })
