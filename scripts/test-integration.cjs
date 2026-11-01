@@ -40,7 +40,7 @@ async function main() {
   const signupData = { name:'Barbearia Cadastro Teste', email:'signup@example.invalid', cpf:'52998224725', fullName:'Pessoa Teste', birthDate:'1990-01-01', address:'Rua Teste, 10 - Centro, São Paulo/SP', phone:'5511999999999', plan:'MONTHLY', password:'Barber88!' };
   await check('password requires eight characters, a letter, a number and a special character',async()=>{
     assert.equal(passwordInput.safeParse('Barber88!').success,true);
-    for(const invalid of ['Barber8!','barberxx!','Barber888','12345678!']) assert.equal(passwordInput.safeParse(invalid).success,false,invalid);
+    for(const invalid of ['Barb8!x','barberxx!','Barber888','12345678!']) assert.equal(passwordInput.safeParse(invalid).success,false,invalid);
   });
   await check('company registration requires explicit terms acceptance',async()=>{
     assert.equal(companyInput.safeParse(signupData).success,false);
