@@ -46,7 +46,7 @@ export default function Clientes() {
     birthDate: '',
     address: '',
     notes: '',
-    whatsappConsent: true,
+    whatsappConsent: false,
     isActive: true
   })
 
@@ -93,7 +93,7 @@ export default function Clientes() {
         birthDate: '',
         address: '',
         notes: '',
-        whatsappConsent: true,
+        whatsappConsent: false,
         isActive: true
       })
     }
