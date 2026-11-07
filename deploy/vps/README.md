@@ -1,4 +1,4 @@
-# Implantação futura — ambiente compartilhado
+# Deploy via Git — ambiente compartilhado
 
 **Estado: preview publicado em `https://barberpro.genioplay.com.br`.** Ver [análise da VPS](../../docs/producao/ANALISE-VPS.md) e [status](../../docs/producao/STATUS-IMPLEMENTACAO.md). O serviço, role, banco e site Nginx próprios estão ativos. Não usar dados reais até a auditoria do host, restauração de backup e homologação funcional serem concluídas. O contêiner suspeito de GenioPlay permanece parado; outro Redis sem autenticação foi limitado a loopback.
 
@@ -6,7 +6,7 @@ Padrão observado e adotado: Nginx do host, PostgreSQL 17 local, usuário e runt
 
 Recursos criados para o preview:
 
-- Usuário/grupo `barberpro` sem sudo/shell; release `/opt/barberpro/releases/20261031-preview`, symlink `/opt/barberpro/current`, dados persistentes em `/opt/barberpro/shared`.
+- Usuário/grupo `barberpro` sem sudo/shell; releases em `/opt/barberpro/releases`, clone Git em `/opt/barberpro/repository`, symlink `/opt/barberpro/current`, dados persistentes em `/opt/barberpro/shared`.
 - Node 22 existente na VPS; dependências instaladas com lockfile e build Next.js feito em Linux.
 - Arquivo `/opt/barberpro/shared/app.env`, modo 0600 e proprietário `barberpro`; contém segredos individuais. Nunca versionar nem revelar.
 - Banco `barberpro_prod` e role `app_barberpro` sem SUPERUSER/CREATEDB/CREATEROLE; conexão local limitada a cinco conexões.
@@ -14,7 +14,26 @@ Recursos criados para o preview:
 - Uploads persistentes em `/opt/barberpro/shared/uploads`.
 - Site Nginx exclusivo para `barberpro.genioplay.com.br`; HTTPS Let's Encrypt ativo e renovação automática configurada.
 
-Sequência de implantação após liberação:
+## Atualizar a partir do Git
+
+Repositório: `https://github.com/RamonCerqueira/barbershop-system_LAN-AR.git`, branch `main`. O deploy é acionado manualmente na VPS, seguindo o padrão de releases Git usado nos outros serviços:
+
+```bash
+/opt/barberpro/repository/deploy/vps/update-vps.sh
+```
+
+O script busca `main` com fast-forward, empacota o commit em uma release separada, instala versões travadas pelo lockfile, gera o Prisma Client, compila, cria backup privado do banco, aplica migrations versionadas e troca `/opt/barberpro/current` atomicamente. Ele reinicia somente `barberpro.service` e restaura a release/unidade anteriores se o smoke test local falhar. Pushes não disparam deploy automático.
+
+Primeiro checkout, se necessário:
+
+```bash
+install -d -o barberpro -g barberpro /opt/barberpro/repository
+runuser -u barberpro -- git clone --branch main https://github.com/RamonCerqueira/barbershop-system_LAN-AR.git /opt/barberpro/repository
+```
+
+Segredos permanecem em `/opt/barberpro/shared/app.env`; nunca versionar esse arquivo.
+
+## Preparação de infraestrutura
 
 1. Revalidar saúde/segurança da VPS, portas, espaço, memória e estado dos projetos; capturar hashes dos sites existentes.
 2. Definir domínio/DNS e origem APP_URL, escopo do piloto e migração ou banco vazio.
