@@ -108,7 +108,13 @@ mv -Tf "$next_link" "$root/current"
 switched=1
 systemctl restart "$service"
 systemctl is-active --quiet "$service"
-curl -fsS --max-time 15 http://127.0.0.1:3214/api/health | grep -q '"status":"ok"'
+healthy=0
+for attempt in {1..30}; do
+  health_response=$(curl -fsS --max-time 5 http://127.0.0.1:3214/api/health 2>/dev/null || true)
+  if [[ "$health_response" == *'"status":"ok"'* ]]; then healthy=1; break; fi
+  sleep 2
+done
+[[ "$healthy" == 1 ]] || { printf 'Health check não ficou saudável em 60 segundos.\n' >&2; false; }
 switched=0
 trap - ERR
 
