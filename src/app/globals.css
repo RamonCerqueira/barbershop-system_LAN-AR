@@ -132,3 +132,193 @@ input[type="range"].barber-slider::-moz-range-thumb {
 }
 
 :root { --font-geist-sans: Arial, Helvetica, sans-serif; --font-geist-mono: Consolas, monospace; }
+
+/* Shared management dashboard theme */
+.dashboard-shell {
+  --dash-amber: #f4b640;
+  --dash-amber-bright: #ffd06b;
+  --dash-panel: rgba(21, 26, 33, 0.94);
+  --dash-line: rgba(255, 255, 255, 0.085);
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 79% -18%, rgba(139, 92, 35, 0.15), transparent 34rem),
+    radial-gradient(ellipse at 8% 48%, rgba(47, 60, 77, 0.12), transparent 38rem),
+    #0b0e12;
+}
+
+.dashboard-sidebar {
+  background: linear-gradient(180deg, #11161d 0%, #0d1117 100%);
+  border-color: var(--dash-line);
+  box-shadow: 18px 0 55px rgba(0, 0, 0, 0.18);
+}
+
+.dashboard-brand { border-color: var(--dash-line); }
+
+.dashboard-brand-mark {
+  color: #15120b;
+  background: linear-gradient(145deg, #ffd46f 0%, #dc9b2d 100%);
+  box-shadow: 0 8px 28px rgba(220, 155, 45, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dashboard-nav-link { position: relative; }
+.dashboard-nav-link::before {
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: -0.75rem;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--dash-amber);
+  content: "";
+  opacity: 0;
+  transform: scaleY(0.4);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.dashboard-nav-link:hover { background: rgba(255, 255, 255, 0.045); }
+.dashboard-nav-link:hover .dashboard-nav-icon { color: #f6c55d; background: rgba(244, 182, 64, 0.1); }
+.dashboard-nav-active {
+  color: #fff;
+  background: linear-gradient(100deg, rgba(218, 157, 51, 0.19), rgba(218, 157, 51, 0.055));
+  box-shadow: inset 0 0 0 1px rgba(244, 182, 64, 0.13);
+}
+.dashboard-nav-active::before { opacity: 1; transform: scaleY(1); }
+.dashboard-nav-active .dashboard-nav-icon {
+  color: #ffd16d;
+  background: rgba(244, 182, 64, 0.13);
+}
+
+.dashboard-main { background: transparent; }
+.dashboard-topbar {
+  border-color: var(--dash-line);
+  background: rgba(12, 15, 20, 0.83);
+  backdrop-filter: blur(18px);
+}
+.dashboard-content { width: 100%; max-width: 1680px; margin-inline: auto; }
+.dashboard-notifications {
+  border-color: var(--dash-line);
+  background: rgba(20, 25, 32, 0.98);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+  animation: dashboard-pop 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.dashboard-dialog-panel {
+  max-height: min(90vh, 54rem);
+  overflow-y: auto;
+  animation: dashboard-pop 190ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.dashboard-shell .bg-gray-800 {
+  border-color: var(--dash-line);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(24, 29, 36, 0.98), rgba(16, 20, 26, 0.98));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.dashboard-shell .bg-gray-800:hover {
+  border-color: rgba(244, 182, 64, 0.2);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+.dashboard-shell .bg-gray-900 {
+  border-color: rgba(255, 255, 255, 0.09);
+  background-color: #0d1117;
+}
+.dashboard-shell .bg-gray-700 { background-color: rgba(255, 255, 255, 0.075); }
+.dashboard-shell .border-gray-700 { border-color: var(--dash-line); }
+.dashboard-shell .text-gray-400 { color: #a0a9b6; }
+.dashboard-shell .text-gray-500 { color: #77818e; }
+.dashboard-shell .text-orange-400,
+.dashboard-shell .text-orange-500 { color: var(--dash-amber-bright); }
+.dashboard-shell [class~="bg-orange-500/20"] { background-color: rgba(244, 182, 64, 0.13); }
+.dashboard-shell [class~="bg-orange-500/10"] { background-color: rgba(244, 182, 64, 0.075); }
+
+.dashboard-shell input:not([type="checkbox"]):not([type="radio"]),
+.dashboard-shell select,
+.dashboard-shell textarea {
+  border-color: rgba(255, 255, 255, 0.11);
+  background-color: rgba(9, 12, 16, 0.72);
+  color: #f4f5f7;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.dashboard-shell input:focus,
+.dashboard-shell select:focus,
+.dashboard-shell textarea:focus {
+  border-color: rgba(244, 182, 64, 0.72);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(244, 182, 64, 0.12);
+}
+.dashboard-shell button,
+.dashboard-shell a { -webkit-tap-highlight-color: transparent; }
+.dashboard-shell button:not(:disabled),
+.dashboard-shell a { transition: transform 160ms ease, filter 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease; }
+.dashboard-shell button:not(:disabled):active,
+.dashboard-shell a:active { transform: scale(0.985); }
+.dashboard-shell button:focus-visible,
+.dashboard-shell a:focus-visible {
+  outline: 2px solid rgba(255, 208, 107, 0.88);
+  outline-offset: 3px;
+}
+
+.dashboard-page-enter { animation: dashboard-rise 360ms cubic-bezier(0.2, 0.75, 0.3, 1) both; }
+.dashboard-hero {
+  isolation: isolate;
+  min-height: 220px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-image:
+    linear-gradient(90deg, rgba(10, 13, 17, 0.97) 0%, rgba(10, 13, 17, 0.88) 43%, rgba(10, 13, 17, 0.35) 100%),
+    url('/hero-barber-banner.jpg');
+  background-position: center 45%;
+  background-size: cover;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.dashboard-hero::after {
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(244, 182, 64, 0.62), transparent);
+  content: "";
+}
+.dashboard-kicker { color: #f5c563; }
+.dashboard-stat-card { position: relative; overflow: hidden; }
+.dashboard-stat-card:hover { transform: translateY(-3px); }
+.dashboard-stat-card::after {
+  position: absolute;
+  top: -2.5rem;
+  right: -2.5rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 182, 64, 0.09), transparent 70%);
+  content: "";
+  pointer-events: none;
+}
+
+.calendar-cell { position: relative; overflow: hidden; }
+.calendar-cell:hover .calendar-cell-action,
+.calendar-cell:focus-visible .calendar-cell-action { opacity: 1; transform: translateY(0); }
+.calendar-cell-action { opacity: 0; transform: translateY(3px); transition: opacity 160ms ease, transform 160ms ease; }
+.calendar-day-appointments { scrollbar-width: thin; scrollbar-color: rgba(244, 182, 64, 0.35) transparent; }
+.calendar-day-card { cursor: pointer; transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease; }
+.calendar-day-card:hover { transform: translateY(-2px); border-color: rgba(244, 182, 64, 0.34); background-color: rgba(244, 182, 64, 0.045); }
+
+@keyframes dashboard-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes dashboard-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 640px) {
+  .dashboard-hero { min-height: 260px; background-position: 60% center; }
+  .calendar-cell-action { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page-enter,
+  .dashboard-notifications,
+  .dashboard-dialog-panel { animation: none !important; }
+  .calendar-day-card:hover { transform: none; }
+}

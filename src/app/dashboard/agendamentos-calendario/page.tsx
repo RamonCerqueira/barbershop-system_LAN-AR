@@ -5,6 +5,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  ArrowLeft,
+  ArrowRight,
+  CalendarDays,
+  CalendarPlus,
   Send,
   Copy,
   Check,
@@ -184,6 +188,24 @@ export default function AgendamentosCalendario() {
     })
   }
 
+  const openNewAppointment = (date = selectedDate, time = '10:00') => {
+    setNewForm({
+      clientName: '',
+      clientPhone: '',
+      serviceId: services[0]?.id || '',
+      employeeId: employees[0]?.id || '',
+      date,
+      time,
+      notes: ''
+    })
+    setShowNewModal(true)
+  }
+
+  const openDayActions = (date: string) => {
+    setSelectedDate(date)
+    setViewMode('day')
+  }
+
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate((prev) => {
       const next = new Date(prev)
@@ -273,27 +295,17 @@ export default function AgendamentosCalendario() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Calendário de Agendamentos</h1>
-          <p className="text-sm text-gray-400">
-            Visualize os horários por mês ou dia e envie links reais de confirmação
+          <p className="dashboard-kicker mb-2 text-[10px] font-bold uppercase tracking-[0.22em]">Agenda da equipe</p>
+          <h1 className="text-2xl font-bold text-white sm:text-3xl">Calendário de agendamentos</h1>
+          <p className="mt-1 text-sm text-gray-400">
+            Clique em um dia para ver os atendimentos e acessar as ações rápidas.
           </p>
         </div>
         <button
-          onClick={() => {
-            setNewForm({
-              clientName: '',
-              clientPhone: '',
-              serviceId: services[0]?.id || '',
-              employeeId: employees[0]?.id || '',
-              date: selectedDate || formatLocalDate(new Date()),
-              time: '10:00',
-              notes: ''
-            })
-            setShowNewModal(true)
-          }}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium flex items-center space-x-2"
+          onClick={() => openNewAppointment(selectedDate || formatLocalDate(new Date()))}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 font-semibold text-white shadow-lg shadow-amber-950/20 hover:bg-orange-600"
         >
-          <Plus size={20} />
+          <Plus size={18} />
           <span>Novo Agendamento</span>
         </button>
       </div>
@@ -366,6 +378,8 @@ export default function AgendamentosCalendario() {
 
       {viewMode === 'month' ? (
         <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+          <div className="min-w-[700px]">
           <div className="grid grid-cols-7 bg-gray-900 border-b border-gray-700">
             {weekDays.map((day) => (
               <div
@@ -396,8 +410,17 @@ export default function AgendamentosCalendario() {
               return (
                 <div
                   key={dateString}
-                  onClick={() => setSelectedDate(dateString)}
-                  className={`h-32 border-r border-b border-gray-700 p-2 cursor-pointer hover:bg-gray-700/40 transition-colors ${isToday ? 'bg-orange-500/10' : ''
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Abrir ações e agenda de ${day.toLocaleDateString('pt-BR')}`}
+                  onClick={() => openDayActions(dateString)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openDayActions(dateString)
+                    }
+                  }}
+                  className={`calendar-cell group h-32 border-r border-b border-gray-700 p-2 cursor-pointer hover:bg-gray-700/40 transition-colors ${isToday ? 'bg-orange-500/10' : ''
                     } ${isSelected ? 'ring-2 ring-inset ring-orange-500' : ''}`}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -414,13 +437,23 @@ export default function AgendamentosCalendario() {
                     )}
                   </div>
 
-                  <div className="space-y-1 overflow-y-auto max-h-20">
+                  <div className="calendar-day-appointments space-y-1 overflow-y-auto max-h-[76px]">
                     {dayAppointments.map((appointment) => (
                       <div
                         key={appointment.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${appointment.time}, ${appointment.clientName}, ${statusTranslations[appointment.status]}. Abrir detalhes.`}
                         onClick={(e) => {
                           e.stopPropagation()
                           setSelectedAppointment(appointment)
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            setSelectedAppointment(appointment)
+                          }
                         }}
                         className={`text-xs p-1 rounded border cursor-pointer truncate ${statusColors[appointment.status] || statusColors.SCHEDULED
                           }`}
@@ -430,53 +463,110 @@ export default function AgendamentosCalendario() {
                       </div>
                     ))}
                   </div>
+                  <div className="calendar-cell-action pointer-events-none absolute inset-x-2 bottom-1 flex items-center justify-end gap-1 rounded-md bg-[#171b21]/90 px-1.5 py-1 text-[9px] font-semibold text-amber-200 backdrop-blur-sm">
+                    Ver dia e ações <ArrowRight size={11} />
+                  </div>
                 </div>
               )
             })}
           </div>
+          </div>
+          </div>
         </div>
       ) : (
         <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white">
-              Agenda de {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR')}
-            </h3>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
-            />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="dashboard-kicker text-[10px] font-bold uppercase tracking-[0.2em]">Ações do dia</p>
+              <h3 className="mt-1 text-lg font-semibold text-white sm:text-xl">
+                {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </h3>
+              <p className="mt-1 text-xs text-gray-400">{getAppointmentsForDate(selectedDate).length} agendamento(s) neste dia</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="date"
+                aria-label="Selecionar data da agenda"
+                value={selectedDate}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSelectedDate(value)
+                  if (value) {
+                    const [year, month] = value.split('-').map(Number)
+                    setCurrentDate(new Date(year, month - 1, 1))
+                  }
+                }}
+                className="rounded-xl px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => openNewAppointment(selectedDate)}
+                className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-3.5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600"
+              >
+                <CalendarPlus size={16} /> Novo horário
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('month')}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2.5 text-sm text-slate-300 hover:bg-white/5"
+              >
+                <ArrowLeft size={15} /> Mês
+              </button>
+            </div>
           </div>
 
           {getAppointmentsForDate(selectedDate).length === 0 ? (
-            <p className="text-gray-400 py-8 text-center">
-              Nenhum agendamento para esta data.
-            </p>
+            <div className="rounded-2xl border border-dashed border-white/10 bg-black/10 px-5 py-10 text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-300"><CalendarDays size={22} /></span>
+              <p className="mt-4 font-semibold text-white">Nenhum agendamento corresponde aos filtros</p>
+              <p className="mt-1 text-sm text-gray-400">Ajuste os filtros ou use o atalho para reservar um horário nesta data.</p>
+              <button
+                type="button"
+                onClick={() => openNewAppointment(selectedDate)}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-2.5 text-sm font-semibold text-amber-200 hover:bg-amber-400/15"
+              >
+                <Plus size={16} /> Criar agendamento neste dia
+              </button>
+            </div>
           ) : (
             <div className="space-y-3">
               {getAppointmentsForDate(selectedDate).map((apt) => (
                 <div
                   key={apt.id}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedAppointment(apt)
+                    }
+                  }}
                   onClick={() => setSelectedAppointment(apt)}
-                  className="p-4 bg-gray-900 border border-gray-700 rounded-lg flex items-center justify-between cursor-pointer hover:border-orange-500"
+                  className="calendar-day-card flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-gray-700 bg-gray-900 p-4"
                 >
-                  <div>
-                    <p className="text-white font-semibold">
-                      {apt.time} — {apt.clientName}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/15 bg-amber-400/10 font-bold text-amber-200">{apt.time}</span>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-white">{apt.clientName}</p>
                     <p className="text-sm text-gray-400">
                       {apt.serviceName} com {apt.employeeName}
                     </p>
+                    </div>
                   </div>
-                  <span
-                    className={`px-2.5 py-1 text-xs rounded-full border ${statusColors[apt.status]
-                      }`}
-                  >
-                    {statusTranslations[apt.status]}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="hidden text-sm font-semibold text-slate-200 sm:block">R$ {apt.price.toFixed(2)}</span>
+                    <span className={`rounded-full border px-2.5 py-1 text-xs ${statusColors[apt.status]}`}>{statusTranslations[apt.status]}</span>
+                    <ArrowRight size={16} className="text-slate-500" />
+                  </div>
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={() => openNewAppointment(selectedDate)}
+                className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-amber-200 transition hover:text-amber-100"
+              >
+                <Plus size={16} /> Adicionar outro horário
+              </button>
             </div>
           )}
         </div>
@@ -484,10 +574,10 @@ export default function AgendamentosCalendario() {
 
       {/* Selected Appointment Modal */}
       {selectedAppointment && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={() => setSelectedAppointment(null)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="calendar-appointment-title" onClick={(event) => event.stopPropagation()} className="dashboard-dialog-panel bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">
+              <h3 id="calendar-appointment-title" className="text-lg font-semibold text-white">
                 Detalhes do Agendamento
               </h3>
               <button
@@ -607,9 +697,9 @@ export default function AgendamentosCalendario() {
 
       {/* Modal Novo Agendamento */}
       {showNewModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Novo Agendamento</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={() => setShowNewModal(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="calendar-new-appointment-title" onClick={(event) => event.stopPropagation()} className="dashboard-dialog-panel bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
+            <h3 id="calendar-new-appointment-title" className="text-lg font-semibold text-white mb-4">Novo Agendamento</h3>
             <form onSubmit={handleCreateAppointment} className="space-y-4">
               <input
                 type="text"

@@ -119,26 +119,48 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Visão Geral</h1>
-          <p className="text-sm text-gray-400">
-            Acompanhe os indicadores em tempo real direto do banco PostgreSQL
-          </p>
+      <section className="dashboard-hero relative overflow-hidden rounded-[24px] p-6 sm:p-8 xl:p-9">
+        <div className="relative z-10 flex h-full flex-col justify-between gap-8 lg:flex-row lg:items-end">
+          <div className="max-w-2xl">
+            <span className="dashboard-kicker inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-black/25 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em]">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+              Resumo da operação
+            </span>
+            <h1 className="mt-4 text-3xl font-bold leading-tight text-white sm:text-4xl">Sua barbearia, em ritmo.</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">
+              Agenda, equipe e caixa em um só lugar. Veja o movimento de hoje e escolha seu próximo passo.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/dashboard/agendamentos-calendario"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-4 py-3 text-sm font-bold text-[#1a150b] shadow-lg shadow-black/20 hover:bg-amber-300"
+            >
+              <Calendar size={17} /> Abrir calendário
+            </Link>
+            <Link
+              href="/dashboard/caixa"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-sm font-semibold text-white backdrop-blur hover:bg-white/10"
+            >
+              <DollarSign size={17} /> Acessar caixa
+            </Link>
+            <button
+              type="button"
+              onClick={loadDashboard}
+              disabled={loading}
+              aria-label="Atualizar indicadores"
+              title="Atualizar indicadores"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-black/25 text-slate-200 backdrop-blur hover:bg-white/10 disabled:opacity-50"
+            >
+              <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
-        <button
-          onClick={loadDashboard}
-          disabled={loading}
-          className="inline-flex items-center px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-sm text-gray-200 transition-colors"
-        >
-          <RefreshCw size={16} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar Dados
-        </button>
-      </div>
+      </section>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+        <div className="dashboard-stat-card bg-gray-800 border border-gray-700 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">Agendamentos Hoje</p>
@@ -158,7 +180,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+        <div className="dashboard-stat-card bg-gray-800 border border-gray-700 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">Receita Hoje</p>
@@ -176,7 +198,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+        <div className="dashboard-stat-card bg-gray-800 border border-gray-700 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">Receita Mensal</p>
@@ -193,7 +215,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+        <div className="dashboard-stat-card bg-gray-800 border border-gray-700 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-400">Total de Clientes</p>
