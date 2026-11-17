@@ -5,6 +5,7 @@ import { bookingInput } from './validation'
 import { HttpError } from './http'
 import { assertAvailable, assertTransition, BookingSettings, dayRange } from './booking-rules'
 import { digest, opaqueToken } from './security'
+import { evaluateCompanySubscription } from './subscription'
 
 export const appointmentInclude = { client: true, service: true, employee: true } as const
 export function formatAppointment(a: Prisma.AppointmentGetPayload<{ include: typeof appointmentInclude }>) {
@@ -12,6 +13,35 @@ export function formatAppointment(a: Prisma.AppointmentGetPayload<{ include: typ
     duration: a.duration, clientId: a.clientId, clientName: a.client.fullName, clientPhone: a.client.phone, clientEmail: a.client.email || '',
     serviceId: a.serviceId, serviceName: a.serviceNameSnapshot || a.service.name, employeeId: a.employeeId, employeeName: a.employeeNameSnapshot || a.employee.name }
 }
+async function assertNoEmployeeBlock(
+  tx: Prisma.TransactionClient,
+  companyId: string,
+  employeeId: string,
+  date: string,
+  time: string,
+  duration: number
+) {
+  const blocks = await tx.employeeBlock.findMany({
+    where: { companyId, employeeId, date }
+  })
+  if (!blocks.length) return
+  const toMin = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map(Number)
+    return h * 60 + m
+  }
+  const start = toMin(time)
+  const end = start + duration
+  const hit = blocks.find((b) => start < toMin(b.endTime) && end > toMin(b.startTime))
+  if (hit) {
+    throw new HttpError(
+      409,
+      hit.reason
+        ? `Profissional indisponível neste horário (${hit.reason}).`
+        : 'Profissional indisponível neste horário (bloqueio/folga).'
+    )
+  }
+}
+
 async function lock(tx: Prisma.TransactionClient, company: string, employee: string, date: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${company}),hashtext(${employee + ':' + date}))::text`
 }
@@ -28,8 +58,18 @@ export async function createBooking(input: unknown, companyId: string, idempoten
       tx.companySettings.findUnique({ where: { companyId } }), tx.company.findFirst({ where: { id: companyId, isActive: true } })
     ])
     if (!service || !employee || !settings || !company) throw new HttpError(404, 'Empresa, serviço ou profissional indisponível.')
+    const subscription = evaluateCompanySubscription(company)
+    if (!subscription.hasAccess) {
+      throw new HttpError(
+        publicBooking ? 403 : 402,
+        publicBooking
+          ? 'Esta barbearia está temporariamente indisponível para novos agendamentos.'
+          : subscription.message
+      )
+    }
     const occupied = await tx.appointment.findMany({ where: { companyId, employeeId: employee.id, date: dayRange(data.date), status: { notIn: ['CANCELLED','NO_SHOW'] } }, select: { time: true, duration: true } })
     assertAvailable(data.date,data.time,service.duration,settings as unknown as BookingSettings,occupied)
+    await assertNoEmployeeBlock(tx, companyId, employee.id, data.date, data.time, service.duration)
     let client
     if (data.clientId && !publicBooking) client = await tx.client.findFirst({ where: { id: data.clientId, companyId, isActive: true } })
     else {
@@ -81,6 +121,7 @@ export async function updateBooking(id: string, companyId: string, input: unknow
       if (data.serviceId && data.serviceId !== current.serviceId) { duration = service.duration; price = data.price ?? service.price }
       const occupied = await tx.appointment.findMany({ where: { id: { not: id }, companyId, employeeId, date: dayRange(date), status: { notIn: ['CANCELLED','NO_SHOW'] } }, select: { time: true, duration: true } })
       assertAvailable(date,time,duration,settings as unknown as BookingSettings,occupied)
+      await assertNoEmployeeBlock(tx, companyId, employeeId, date, time, duration)
     }
     const updated = await tx.appointment.update({ where: { id }, data: { date: new Date(`${date}T12:00:00Z`), time, employeeId, serviceId: data.serviceId, clientId: data.clientId, notes: data.notes, status: nextStatus, duration, price }, include: appointmentInclude })
     if (nextStatus === 'COMPLETED' && current.status !== 'COMPLETED') await tx.client.update({ where: { id: current.clientId }, data: { totalVisits: { increment: 1 } } })

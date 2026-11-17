@@ -2,23 +2,30 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
+  Bell,
   Building2,
-  DollarSign,
-  Users,
-  TrendingUp,
-  Search,
-  Eye,
-  Edit,
-  Trash2,
   CheckCircle,
-  XCircle,
-  Download,
+  CheckCircle2,
+  Clock3,
   Crown,
+  DollarSign,
+  Download,
+  Edit,
+  Eye,
+  FileCheck2,
   LogOut,
-  RefreshCw
+  QrCode,
+  RefreshCw,
+  Search,
+  Send,
+  Trash2,
+  TrendingUp,
+  XCircle
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api'
+import { formatCurrencyBRL } from '@/lib/masks'
+import { SaasAlert, SaasField, saasInputClass } from '@/components/ui/SaasUI'
 
 interface CompanyItem {
   id: string
@@ -32,6 +39,9 @@ interface CompanyItem {
   planPrice: number
   isActive: boolean
   status: string
+  subscriptionStatus?: string
+  subscriptionDaysRemaining?: number
+  subscriptionExpiresAt?: string
   joinDate: string
   counts: {
     users: number
@@ -42,11 +52,61 @@ interface CompanyItem {
   }
 }
 
+interface AdminPaymentItem {
+  id: string
+  companyId: string
+  plan: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+  amount: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  pixKey: string
+  pixBeneficiary: string
+  pixBank: string
+  payerNote: string | null
+  hasProof: boolean
+  proofFileName: string | null
+  submittedAt: string
+  reviewedAt: string | null
+  reviewedByName: string | null
+  rejectionReason: string | null
+  periodStart: string | null
+  periodEnd: string | null
+  company: {
+    id: string
+    name: string
+    fullName: string
+    email: string
+    phone: string
+    cpf: string
+  }
+  subscription: {
+    effectiveStatus: string
+    daysRemaining: number
+  }
+}
+
+interface NotificationLogItem {
+  id: string
+  companyId: string
+  type: string
+  referenceDate: string
+  channel: string
+  status: string
+  recipient: string
+  message: string
+  sentAt: string
+  company?: { id: string; name: string; email: string }
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'notifications'>('overview')
   const [selectedPeriod, setSelectedPeriod] = useState('month')
   const [searchTerm, setSearchTerm] = useState('')
+  const [paymentFilter, setPaymentFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL')
   const [loading, setLoading] = useState(true)
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
+  const [cronRunning, setCronRunning] = useState(false)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const [systemStats, setSystemStats] = useState({
     totalCompanies: 0,
@@ -62,18 +122,40 @@ export default function AdminDashboard() {
     { month: string; revenue: number; companies: number }[]
   >([])
 
+  const [payments, setPayments] = useState<AdminPaymentItem[]>([])
+  const [paymentCounts, setPaymentCounts] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    approvedVolume: 0
+  })
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLogItem[]>([])
+
   const [selectedCompany, setSelectedCompany] = useState<CompanyItem | null>(null)
   const [editingCompany, setEditingCompany] = useState<CompanyItem | null>(null)
+  const [rejectingPayment, setRejectingPayment] = useState<AdminPaymentItem | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
 
   const loadAdminData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiFetch(`/api/admin/overview?period=${selectedPeriod}`)
-      if (res.ok) {
-        const data = await res.json()
+      const [overviewRes, paymentsRes] = await Promise.all([
+        apiFetch(`/api/admin/overview?period=${selectedPeriod}`),
+        apiFetch('/api/admin/payments')
+      ])
+
+      if (overviewRes.ok) {
+        const data = await overviewRes.json()
         if (data.systemStats) setSystemStats(data.systemStats)
         if (Array.isArray(data.companies)) setCompanies(data.companies)
         if (Array.isArray(data.monthlyRevenue)) setMonthlyRevenue(data.monthlyRevenue)
+      }
+
+      if (paymentsRes.ok) {
+        const payData = await paymentsRes.json()
+        if (payData.counts) setPaymentCounts(payData.counts)
+        if (Array.isArray(payData.payments)) setPayments(payData.payments)
+        if (Array.isArray(payData.notificationLogs)) setNotificationLogs(payData.notificationLogs)
       }
     } catch (error) {
       console.error('Erro ao carregar painel Super Admin:', error)
@@ -83,7 +165,7 @@ export default function AdminDashboard() {
   }, [selectedPeriod])
 
   useEffect(() => {
-    loadAdminData()
+    void loadAdminData()
   }, [loadAdminData])
 
   const handleToggleCompanyActive = async (company: CompanyItem) => {
@@ -117,6 +199,7 @@ export default function AdminDashboard() {
       })
       if (res.ok) {
         setEditingCompany(null)
+        setFeedback({ type: 'success', text: 'Dados da empresa atualizados com sucesso.' })
         await loadAdminData()
       }
     } catch (error) {
@@ -125,13 +208,11 @@ export default function AdminDashboard() {
   }
 
   const handleDeleteCompany = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta barbearia e todos os seus dados?'))
-      return
+    if (!confirm('Tem certeza que deseja suspender/desativar esta barbearia?')) return
     try {
-      const res = await apiFetch(`/api/admin/companies/${id}`, {
-        method: 'DELETE'
-      })
+      const res = await apiFetch(`/api/admin/companies/${id}`, { method: 'DELETE' })
       if (res.ok) {
+        setFeedback({ type: 'success', text: 'Barbearia suspensa com sucesso.' })
         await loadAdminData()
       }
     } catch (error) {
@@ -139,16 +220,88 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleApprovePayment = async (payment: AdminPaymentItem) => {
+    if (
+      !confirm(
+        `Confirmar o recebimento do PIX de ${formatCurrencyBRL(payment.amount)} para "${payment.company.name}" e liberar o plano ${getPlanName(payment.plan)}?`
+      )
+    ) {
+      return
+    }
+    setActionLoadingId(payment.id)
+    setFeedback(null)
+    try {
+      const res = await apiFetch(`/api/admin/payments/${payment.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'APPROVE' })
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Erro ao aprovar pagamento')
+      setFeedback({ type: 'success', text: body.message || 'Pagamento aprovado e acesso liberado!' })
+      await loadAdminData()
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err?.message || 'Erro ao aprovar pagamento.' })
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleRejectPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!rejectingPayment || rejectionReason.trim().length < 3) return
+    setActionLoadingId(rejectingPayment.id)
+    setFeedback(null)
+    try {
+      const res = await apiFetch(`/api/admin/payments/${rejectingPayment.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          action: 'REJECT',
+          rejectionReason: rejectionReason.trim()
+        })
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Erro ao rejeitar pagamento')
+      setRejectingPayment(null)
+      setRejectionReason('')
+      setFeedback({ type: 'success', text: 'Pagamento rejeitado e cliente notificado.' })
+      await loadAdminData()
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err?.message || 'Erro ao rejeitar pagamento.' })
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleRunReminders = async () => {
+    setCronRunning(true)
+    setFeedback(null)
+    try {
+      const res = await apiFetch('/api/cron/subscriptions', { method: 'POST' })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Falha ao executar rotina')
+      setFeedback({
+        type: 'success',
+        text: `Rotina executada (${body.executedAtBr}): ${body.examined} empresa(s) analisada(s), ${body.remindersDispatched} lembrete(s) enviado(s), ${body.blockedCount} bloqueio(s) aplicado(s).`
+      })
+      await loadAdminData()
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err?.message || 'Erro ao executar rotina diária.' })
+    } finally {
+      setCronRunning(false)
+    }
+  }
+
   const handleExportCsv = () => {
-    const headers = ['ID', 'Barbearia', 'Proprietário', 'Email', 'Plano', 'Valor', 'Ativa', 'Data Cadastro']
+    const headers = ['ID', 'Barbearia', 'Proprietário', 'Email', 'Plano', 'Valor', 'Ativa', 'Assinatura', 'Data Cadastro']
     const rows = companies.map((c) => [
       c.id,
       `"${c.name}"`,
       `"${c.owner}"`,
       c.email,
       c.plan,
-      c.planPrice.toFixed(2),
+      Number(c.planPrice).toFixed(2),
       c.isActive ? 'Sim' : 'Não',
+      c.subscriptionStatus || 'TRIAL',
       c.joinDate
     ])
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
@@ -180,6 +333,9 @@ export default function AdminDashboard() {
     }
   }
 
+  const formatBr = (iso: string | null | undefined) =>
+    iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'
+
   const filteredCompanies = companies.filter(
     (company) =>
       company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -187,284 +343,549 @@ export default function AdminDashboard() {
       company.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const filteredPayments = payments.filter((p) => {
+    const matchesStatus = paymentFilter === 'ALL' || p.status === paymentFilter
+    const matchesTerm =
+      !searchTerm ||
+      p.company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.company.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.company.email.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesStatus && matchesTerm
+  })
+
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="dashboard-shell min-h-screen text-white">
       {/* Header */}
-      <header className="bg-black border-b border-gray-800">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Crown className="h-8 w-8 text-orange-500" />
-              <div className="text-2xl font-bold text-orange-500">BarberPro</div>
+      <header className="dashboard-topbar sticky top-0 z-30 border-b">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <div className="flex items-center space-x-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#f5b51b]/40 bg-[#15191f] text-[#f5b51b]">
+              <Crown className="h-5 w-5" />
             </div>
-            <span className="text-gray-600">|</span>
-            <h1 className="text-lg font-semibold text-white">
-              Painel Super Administrativo (PostgreSQL)
-            </h1>
+            <div>
+              <div className="text-lg font-black tracking-[0.14em] text-white">
+                BARBER<span className="text-[#f5b51b]">PRO</span>
+              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#f5b51b]">
+                Painel SuperAdmin
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                activeTab === 'overview'
+                  ? 'bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] text-[#15120b]'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              Empresas & Métricas
+            </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                activeTab === 'payments'
+                  ? 'bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] text-[#15120b]'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              <QrCode size={14} />
+              <span>Pagamentos PIX</span>
+              {paymentCounts.pending > 0 && (
+                <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {paymentCounts.pending}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                activeTab === 'notifications'
+                  ? 'bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] text-[#15120b]'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
+              }`}
+            >
+              <Bell size={14} />
+              <span>Lembretes</span>
+            </button>
+
             <button
               onClick={loadAdminData}
-              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 hover:bg-white/10"
             >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               Atualizar
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-2 text-gray-300 hover:text-red-400 transition-colors text-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-300"
             >
-              <LogOut size={18} />
+              <LogOut size={15} />
               <span>Sair</span>
             </button>
           </div>
         </div>
       </header>
 
-      <div className="p-6 space-y-8 max-w-7xl mx-auto">
+      <div className="mx-auto max-w-7xl space-y-6 p-6">
+        {feedback && (
+          <SaasAlert
+            variant={feedback.type}
+            title={feedback.type === 'success' ? 'Operação concluída' : 'Erro na operação'}
+            message={feedback.text}
+          />
+        )}
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total de Barbearias</p>
-                <p className="text-3xl font-bold text-white mt-1">
-                  {systemStats.totalCompanies}
-                </p>
-              </div>
-              <Building2 className="h-8 w-8 text-blue-400" />
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className="bd-stat-card">
+            <div className="bd-stat-icon is-blue">
+              <Building2 size={30} />
             </div>
-            <p className="text-xs text-green-400 mt-3">
-              {systemStats.activeCompanies} ativas no sistema
+            <div className="bd-stat-copy">
+              <strong>{systemStats.totalCompanies}</strong>
+              <span>Total de Barbearias</span>
+            </div>
+            <p className="bd-stat-note is-green">{systemStats.activeCompanies} ativas</p>
+          </div>
+
+          <div className="bd-stat-card">
+            <div className="bd-stat-icon is-gold">
+              <QrCode size={30} />
+            </div>
+            <div className="bd-stat-copy">
+              <strong>{paymentCounts.pending}</strong>
+              <span>PIX Pendentes</span>
+            </div>
+            <p className="bd-stat-note">
+              {formatCurrencyBRL(paymentCounts.approvedVolume)} aprovados
             </p>
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">MRR (Assinaturas SaaS)</p>
-                <p className="text-3xl font-bold text-green-400 mt-1">
-                  R$ {systemStats.monthlyRevenue.toFixed(2)}
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-green-400" />
+          <div className="bd-stat-card">
+            <div className="bd-stat-icon is-green">
+              <DollarSign size={30} />
             </div>
-            <p className="text-xs text-gray-400 mt-3">Receita contratada estimada · cobrança manual</p>
+            <div className="bd-stat-copy">
+              <strong>{formatCurrencyBRL(systemStats.monthlyRevenue)}</strong>
+              <span>MRR Estimado</span>
+            </div>
+            <p className="bd-stat-note">{systemStats.totalUsers} usuários no sistema</p>
           </div>
 
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Usuários Cadastrados</p>
-                <p className="text-3xl font-bold text-purple-400 mt-1">
-                  {systemStats.totalUsers}
-                </p>
-              </div>
-              <Users className="h-8 w-8 text-purple-400" />
+          <div className="bd-stat-card">
+            <div className="bd-stat-icon is-purple">
+              <TrendingUp size={30} />
             </div>
-            <p className="text-xs text-gray-400 mt-3">
-              {systemStats.totalAppointments} agendamentos totais
-            </p>
-          </div>
-
-          <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Volume Transacionado</p>
-                <p className="text-3xl font-bold text-orange-400 mt-1">
-                  R$ {systemStats.totalTransactedVolume.toFixed(2)}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-orange-400" />
+            <div className="bd-stat-copy">
+              <strong>{formatCurrencyBRL(systemStats.totalTransactedVolume)}</strong>
+              <span>Volume Transacionado</span>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Soma das vendas nas barbearias</p>
+            <p className="bd-stat-note">{systemStats.totalAppointments} agendamentos</p>
           </div>
         </div>
 
-        {/* Revenue Evolution */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">
-              Evolução da receita contratada estimada
-            </h3>
-            <select
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="px-3 py-1.5 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white"
-            >
-              <option value="month">Últimos 6 meses</option>
-              <option value="year">Anual</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-4">
-            {monthlyRevenue.map((item) => (
-              <div
-                key={item.month}
-                className="p-4 bg-gray-900 border border-gray-700 rounded-lg text-center"
-              >
-                <p className="text-xs text-gray-400">{item.month}</p>
-                <p className="text-lg font-bold text-green-400 mt-1">
-                  R$ {item.revenue.toFixed(2)}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {item.companies} barbearia(s)
+        {/* ABA 1: EMPRESAS & MÉTRICAS */}
+        {activeTab === 'overview' && (
+          <>
+            <div className="bd-panel">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">
+                  Evolução da receita contratada estimada
+                </h3>
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="rounded-xl border border-white/10 bg-[#0d1117] px-3 py-1.5 text-sm text-white"
+                >
+                  <option value="month">Últimos 6 meses</option>
+                  <option value="year">Anual</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-6">
+                {monthlyRevenue.map((item) => (
+                  <div
+                    key={item.month}
+                    className="rounded-xl border border-white/10 bg-[#0d1117] p-4 text-center"
+                  >
+                    <p className="text-xs text-slate-400">{item.month}</p>
+                    <p className="mt-1 text-base font-bold text-emerald-400">
+                      {formatCurrencyBRL(item.revenue)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {item.companies} barbearia(s)
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bd-panel overflow-hidden p-0">
+              <div className="flex flex-col justify-between gap-4 border-b border-white/10 p-6 sm:flex-row sm:items-center">
+                <h3 className="text-lg font-semibold text-white">
+                  Empresas Cadastradas ({filteredCompanies.length})
+                </h3>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                      size={16}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Buscar empresas..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="rounded-xl border border-white/10 bg-[#0d1117] py-2 pl-9 pr-4 text-sm text-white"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleExportCsv}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] px-4 py-2 text-xs font-bold text-[#15120b]"
+                  >
+                    <Download size={15} />
+                    <span>Exportar CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#0d1117] text-xs uppercase text-slate-400">
+                    <tr>
+                      <th className="px-6 py-3 text-left">Barbearia</th>
+                      <th className="px-6 py-3 text-left">Proprietário</th>
+                      <th className="px-6 py-3 text-left">Plano</th>
+                      <th className="px-6 py-3 text-left">Assinatura</th>
+                      <th className="px-6 py-3 text-left">Status Conta</th>
+                      <th className="px-6 py-3 text-left">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredCompanies.map((company) => (
+                      <tr key={company.id} className="hover:bg-white/[0.02]">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-white">{company.name}</div>
+                          <div className="text-xs text-slate-400">{company.email}</div>
+                        </td>
+                        <td className="px-6 py-4 text-slate-200">{company.owner}</td>
+                        <td className="px-6 py-4">
+                          <span className="rounded-full bg-[#f5b51b]/15 px-2.5 py-0.5 text-xs font-semibold text-[#f5b51b]">
+                            {getPlanName(company.plan)} ({formatCurrencyBRL(company.planPrice)})
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs">
+                          <div className="font-semibold text-white">
+                            {company.subscriptionStatus || 'TRIAL'}
+                          </div>
+                          <div className="text-slate-400">
+                            Vence: {formatBr(company.subscriptionExpiresAt)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleToggleCompanyActive(company)}
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                              company.isActive
+                                ? 'bg-emerald-500/15 text-emerald-400'
+                                : 'bg-red-500/15 text-red-400'
+                            }`}
+                          >
+                            {company.isActive ? (
+                              <>
+                                <CheckCircle size={13} /> Ativa
+                              </>
+                            ) : (
+                              <>
+                                <XCircle size={13} /> Suspensa
+                              </>
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => setSelectedCompany(company)}
+                              className="p-1.5 text-sky-400 hover:text-sky-300"
+                              title="Ver detalhes"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => setEditingCompany(company)}
+                              className="p-1.5 text-[#f5b51b] hover:text-amber-300"
+                              title="Editar"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCompany(company.id)}
+                              className="p-1.5 text-red-400 hover:text-red-300"
+                              title="Suspender"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ABA 2: PAGAMENTOS PIX */}
+        {activeTab === 'payments' && (
+          <div className="bd-panel overflow-hidden p-0">
+            <div className="flex flex-col justify-between gap-4 border-b border-white/10 p-6 sm:flex-row sm:items-center">
+              <div>
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                  <FileCheck2 size={20} className="text-[#f5b51b]" />
+                  <span>Gerenciamento de Pagamentos PIX</span>
+                </h3>
+                <p className="mt-1 text-xs text-slate-400">
+                  Confira o comprovante na Caixa Econômica Federal antes de liberar o acesso.
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Companies Table */}
-        <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
-          <div className="p-6 border-b border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="text-lg font-semibold text-white">
-              Empresas Cadastradas ({filteredCompanies.length})
-            </h3>
-
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={18}
-                />
-                <input
-                  type="text"
-                  placeholder="Buscar empresas..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-sm text-white"
-                />
+              <div className="flex flex-wrap items-center gap-2">
+                {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setPaymentFilter(status)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                      paymentFilter === status
+                        ? 'bg-[#f5b51b] text-[#15120b]'
+                        : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {status === 'ALL'
+                      ? 'Todos'
+                      : status === 'PENDING'
+                        ? `Pendentes (${paymentCounts.pending})`
+                        : status === 'APPROVED'
+                          ? `Aprovados (${paymentCounts.approved})`
+                          : `Rejeitados (${paymentCounts.rejected})`}
+                  </button>
+                ))}
               </div>
+            </div>
 
+            {filteredPayments.length === 0 ? (
+              <div className="p-12 text-center text-sm text-slate-400">
+                Nenhuma solicitação de pagamento encontrada para este filtro.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#0d1117] text-xs uppercase text-slate-400">
+                    <tr>
+                      <th className="px-5 py-3 text-left">Cliente / Barbearia</th>
+                      <th className="px-5 py-3 text-left">Plano & Valor</th>
+                      <th className="px-5 py-3 text-left">Solicitado em</th>
+                      <th className="px-5 py-3 text-left">Comprovante</th>
+                      <th className="px-5 py-3 text-left">Status</th>
+                      <th className="px-5 py-3 text-left">Ações / Auditoria</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredPayments.map((p) => (
+                      <tr key={p.id} className="hover:bg-white/[0.02]">
+                        <td className="px-5 py-4">
+                          <div className="font-semibold text-white">{p.company.name}</div>
+                          <div className="text-xs text-slate-400">
+                            {p.company.fullName} • {p.company.email}
+                          </div>
+                          {p.payerNote && (
+                            <div className="mt-1 text-xs text-amber-200/80">
+                              Obs: {p.payerNote}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="font-semibold text-white">{getPlanName(p.plan)}</div>
+                          <div className="font-bold text-[#f5b51b]">
+                            {formatCurrencyBRL(p.amount)}
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-xs text-slate-300">
+                          {formatBr(p.submittedAt)}
+                        </td>
+                        <td className="px-5 py-4">
+                          {p.hasProof ? (
+                            <a
+                              href={`/api/subscription/proof/${p.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg bg-sky-500/15 px-2.5 py-1 text-xs font-semibold text-sky-300 hover:bg-sky-500/25"
+                            >
+                              <Eye size={13} /> Abrir
+                            </a>
+                          ) : (
+                            <span className="text-xs text-slate-500">Sem anexo</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {p.status === 'PENDING' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-[#f5b51b]">
+                              <Clock3 size={12} /> Pendente
+                            </span>
+                          )}
+                          {p.status === 'APPROVED' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                              <CheckCircle2 size={12} /> Aprovado
+                            </span>
+                          )}
+                          {p.status === 'REJECTED' && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-xs font-semibold text-red-400">
+                              <XCircle size={12} /> Rejeitado
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4">
+                          {p.status === 'PENDING' ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                disabled={actionLoadingId === p.id}
+                                onClick={() => handleApprovePayment(p)}
+                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
+                              >
+                                Aprovar
+                              </button>
+                              <button
+                                disabled={actionLoadingId === p.id}
+                                onClick={() => {
+                                  setRejectingPayment(p)
+                                  setRejectionReason('')
+                                }}
+                                className="rounded-lg bg-red-600/80 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500 disabled:opacity-50"
+                              >
+                                Rejeitar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-400">
+                              {p.status === 'APPROVED'
+                                ? `Por ${p.reviewedByName || 'SuperAdmin'} em ${formatBr(p.reviewedAt)} • Vence ${formatBr(p.periodEnd)}`
+                                : `Rejeitado em ${formatBr(p.reviewedAt)}: ${p.rejectionReason || ''}`}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ABA 3: LEMBRETES & NOTIFICAÇÕES */}
+        {activeTab === 'notifications' && (
+          <div className="bd-panel overflow-hidden p-0">
+            <div className="flex flex-col justify-between gap-4 border-b border-white/10 p-6 sm:flex-row sm:items-center">
+              <div>
+                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                  <Bell size={20} className="text-[#f5b51b]" />
+                  <span>Histórico de Lembretes Automáticos (Fuso Brasília)</span>
+                </h3>
+                <p className="mt-1 text-xs text-slate-400">
+                  Lembretes de 7, 4 e 1 dia antes do vencimento, dia do vencimento, atraso, aprovação e bloqueio.
+                </p>
+              </div>
               <button
-                onClick={handleExportCsv}
-                className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                onClick={handleRunReminders}
+                disabled={cronRunning}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] px-4 py-2 text-xs font-bold text-[#15120b] disabled:opacity-50"
               >
-                <Download size={16} />
-                <span>Exportar CSV</span>
+                <Send size={14} />
+                <span>{cronRunning ? 'Executando rotina...' : 'Executar Rotina Diária Agora'}</span>
               </button>
             </div>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-900/60 text-xs text-gray-400 uppercase">
-                <tr>
-                  <th className="px-6 py-3 text-left">Barbearia</th>
-                  <th className="px-6 py-3 text-left">Proprietário</th>
-                  <th className="px-6 py-3 text-left">Plano</th>
-                  <th className="px-6 py-3 text-left">Valor</th>
-                  <th className="px-6 py-3 text-left">Status</th>
-                  <th className="px-6 py-3 text-left">Clientes / Agenda</th>
-                  <th className="px-6 py-3 text-left">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {filteredCompanies.map((company) => (
-                  <tr key={company.id} className="hover:bg-gray-700/30">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-white">{company.name}</div>
-                      <div className="text-xs text-gray-400">{company.email}</div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-200">{company.owner}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-0.5 text-xs rounded-full bg-orange-500/20 text-orange-400 font-medium">
-                        {getPlanName(company.plan)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-white">
-                      R$ {company.planPrice.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleToggleCompanyActive(company)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                          company.isActive
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-red-500/20 text-red-400'
-                        }`}
-                      >
-                        {company.isActive ? (
-                          <>
-                            <CheckCircle size={13} /> Ativa
-                          </>
-                        ) : (
-                          <>
-                            <XCircle size={13} /> Suspensa
-                          </>
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-xs text-gray-300">
-                      {company.counts.clients} clientes • {company.counts.appointments}{' '}
-                      agendamentos
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setSelectedCompany(company)}
-                          className="p-1.5 text-blue-400 hover:text-blue-300"
-                          title="Ver detalhes"
-                        >
-                          <Eye size={16} />
-                        </button>
-                        <button
-                          onClick={() => setEditingCompany(company)}
-                          className="p-1.5 text-orange-400 hover:text-orange-300"
-                          title="Editar"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCompany(company.id)}
-                          className="p-1.5 text-red-400 hover:text-red-300"
-                          title="Excluir"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {notificationLogs.length === 0 ? (
+              <div className="p-12 text-center text-sm text-slate-400">
+                Nenhuma notificação de assinatura registrada ainda.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#0d1117] text-xs uppercase text-slate-400">
+                    <tr>
+                      <th className="px-5 py-3 text-left">Data/Hora</th>
+                      <th className="px-5 py-3 text-left">Barbearia</th>
+                      <th className="px-5 py-3 text-left">Tipo</th>
+                      <th className="px-5 py-3 text-left">Canal</th>
+                      <th className="px-5 py-3 text-left">Status</th>
+                      <th className="px-5 py-3 text-left">Mensagem</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {notificationLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-white/[0.02]">
+                        <td className="px-5 py-3.5 text-xs text-slate-300">
+                          {new Date(log.sentAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                        </td>
+                        <td className="px-5 py-3.5 font-medium text-white">
+                          {log.company?.name || log.companyId}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-semibold text-[#f5b51b]">
+                          {log.type}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-300">{log.channel}</td>
+                        <td className="px-5 py-3.5 text-xs">
+                          <span
+                            className={`rounded-full px-2 py-0.5 font-semibold ${
+                              log.status === 'SENT'
+                                ? 'bg-emerald-500/15 text-emerald-400'
+                                : log.status === 'SKIPPED'
+                                  ? 'bg-slate-500/20 text-slate-300'
+                                  : 'bg-red-500/15 text-red-400'
+                            }`}
+                          >
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="max-w-md truncate px-5 py-3.5 text-xs text-slate-400">
+                          {log.message}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Modal Detalhes */}
+      {/* Modal Detalhes da Empresa */}
       {selectedCompany && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6 space-y-4">
-            <div className="flex justify-between items-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="dashboard-dialog-panel w-full max-w-md space-y-4 rounded-[18px] border border-white/10 bg-[#141920] p-6">
+            <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-white">{selectedCompany.name}</h3>
               <button
                 onClick={() => setSelectedCompany(null)}
-                className="text-gray-400 hover:text-white"
+                className="text-slate-400 hover:text-white"
               >
                 ✕
               </button>
             </div>
-            <div className="space-y-2 text-sm text-gray-300">
-              <p>
-                <strong>Responsável:</strong> {selectedCompany.owner}
-              </p>
-              <p>
-                <strong>CPF:</strong> {selectedCompany.cpf}
-              </p>
-              <p>
-                <strong>Email:</strong> {selectedCompany.email}
-              </p>
-              <p>
-                <strong>Telefone:</strong> {selectedCompany.phone}
-              </p>
-              <p>
-                <strong>Endereço:</strong> {selectedCompany.address}
-              </p>
-              <p>
-                <strong>Data de Cadastro:</strong> {selectedCompany.joinDate}
-              </p>
+            <div className="space-y-2 text-sm text-slate-300">
+              <p><strong>Responsável:</strong> {selectedCompany.owner}</p>
+              <p><strong>CPF:</strong> {selectedCompany.cpf}</p>
+              <p><strong>Email:</strong> {selectedCompany.email}</p>
+              <p><strong>Telefone:</strong> {selectedCompany.phone}</p>
+              <p><strong>Endereço:</strong> {selectedCompany.address}</p>
+              <p><strong>Assinatura:</strong> {selectedCompany.subscriptionStatus || 'TRIAL'}</p>
+              <p><strong>Cadastro:</strong> {selectedCompany.joinDate}</p>
             </div>
           </div>
         </div>
@@ -472,55 +893,98 @@ export default function AdminDashboard() {
 
       {/* Modal Editar Empresa */}
       {editingCompany && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Editar Barbearia</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="dashboard-dialog-panel w-full max-w-md rounded-[18px] border border-white/10 bg-[#141920] p-6">
+            <h3 className="mb-4 text-lg font-bold text-white">Editar Barbearia</h3>
             <form onSubmit={handleUpdateCompany} className="space-y-4">
-              <input
-                type="text"
-                value={editingCompany.name}
-                onChange={(e) =>
-                  setEditingCompany({ ...editingCompany, name: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                placeholder="Nome da Barbearia"
-              />
-              <input
-                type="text"
-                value={editingCompany.owner}
-                onChange={(e) =>
-                  setEditingCompany({ ...editingCompany, owner: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                placeholder="Proprietário"
-              />
-              <select
-                value={editingCompany.plan}
-                onChange={(e) =>
-                  setEditingCompany({
-                    ...editingCompany,
-                    plan: e.target.value as CompanyItem['plan']
-                  })
-                }
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-              >
-                <option value="MONTHLY">Mensal (R$ 10,00)</option>
-                <option value="QUARTERLY">Trimestral (R$ 30,00)</option>
-                <option value="ANNUAL">Anual (R$ 120,00)</option>
-              </select>
+              <SaasField label="Nome da Barbearia" required>
+                <input
+                  type="text"
+                  required
+                  value={editingCompany.name}
+                  onChange={(e) => setEditingCompany({ ...editingCompany, name: e.target.value })}
+                  className={saasInputClass}
+                />
+              </SaasField>
+              <SaasField label="Proprietário" required>
+                <input
+                  type="text"
+                  required
+                  value={editingCompany.owner}
+                  onChange={(e) => setEditingCompany({ ...editingCompany, owner: e.target.value })}
+                  className={saasInputClass}
+                />
+              </SaasField>
+              <SaasField label="Plano">
+                <select
+                  value={editingCompany.plan}
+                  onChange={(e) =>
+                    setEditingCompany({
+                      ...editingCompany,
+                      plan: e.target.value as CompanyItem['plan']
+                    })
+                  }
+                  className={saasInputClass}
+                >
+                  <option value="MONTHLY">Mensal (R$ 10,00)</option>
+                  <option value="QUARTERLY">Trimestral (R$ 30,00)</option>
+                  <option value="ANNUAL">Anual (R$ 120,00)</option>
+                </select>
+              </SaasField>
               <div className="flex justify-end space-x-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setEditingCompany(null)}
-                  className="px-4 py-2 text-gray-400"
+                  className="rounded-xl px-4 py-2 text-sm text-slate-400 hover:text-white"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg"
+                  className="rounded-xl bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] px-4 py-2 text-sm font-bold text-[#15120b]"
                 >
                   Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rejeitar Pagamento */}
+      {rejectingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="dashboard-dialog-panel w-full max-w-md rounded-[18px] border border-white/10 bg-[#141920] p-6">
+            <h3 className="mb-2 text-lg font-bold text-white">Rejeitar Pagamento PIX</h3>
+            <p className="mb-4 text-xs text-slate-400">
+              Barbearia: <strong className="text-white">{rejectingPayment.company.name}</strong> ({formatCurrencyBRL(rejectingPayment.amount)})
+            </p>
+            <form onSubmit={handleRejectPayment} className="space-y-4">
+              <SaasField label="Motivo da Rejeição" required>
+                <textarea
+                  required
+                  minLength={3}
+                  rows={3}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Ex: Comprovante ilegível ou transferência não localizada na conta."
+                  className={saasInputClass}
+                />
+              </SaasField>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setRejectingPayment(null)}
+                  className="rounded-xl px-4 py-2 text-sm text-slate-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoadingId === rejectingPayment.id}
+                  className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500 disabled:opacity-50"
+                >
+                  Confirmar Rejeição
                 </button>
               </div>
             </form>

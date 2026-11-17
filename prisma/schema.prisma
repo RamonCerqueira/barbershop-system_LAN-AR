@@ -24,32 +24,43 @@ model SystemOwner {
 
 // Modelo para as empresas (barbearias)
 model Company {
-  id          String   @id @default(cuid())
-  name        String
-  email       String   @unique
-  cpf         String   @unique
-  fullName    String
-  birthDate   DateTime
-  address     String
-  phone       String
-  plan        Plan     @default(MONTHLY)
-  planPrice   Decimal @db.Decimal(12, 2)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String             @id @default(cuid())
+  name                  String
+  email                 String             @unique
+  cpf                   String             @unique
+  fullName              String
+  birthDate             DateTime
+  address               String
+  phone                 String
+  plan                  Plan               @default(MONTHLY)
+  planPrice             Decimal            @db.Decimal(12, 2)
+  isActive              Boolean            @default(true)
+  subscriptionStatus    SubscriptionStatus @default(TRIAL)
+  trialStartedAt        DateTime           @default(now())
+  trialEndsAt           DateTime?
+  subscriptionStartedAt DateTime?
+  currentPeriodEnd      DateTime?
+  lastPaymentAt         DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   // Relacionamentos
-  users             User[]
-  services          Service[]
-  employees         Employee[]
-  products          Product[]
-  clients           Client[]
-  appointments      Appointment[]
-  sales             Sale[]
-  whatsappCampaigns WhatsAppCampaign[]
-  settings          CompanySettings?
-  notifications     Notification[]
+  users                       User[]
+  services                    Service[]
+  employees                   Employee[]
+  products                    Product[]
+  clients                     Client[]
+  appointments                Appointment[]
+  sales                       Sale[]
+  whatsappCampaigns           WhatsAppCampaign[]
+  settings                    CompanySettings?
+  notifications               Notification[]
+  subscriptionPayments        SubscriptionPayment[]
+  subscriptionNotificationLogs SubscriptionNotificationLog[]
+  employeeBlocks              EmployeeBlock[]
 
+  @@index([subscriptionStatus, trialEndsAt], map: "companies_sub_trial_idx")
+  @@index([subscriptionStatus, currentPeriodEnd], map: "companies_sub_period_idx")
   @@map("companies")
 }
 
@@ -57,6 +68,21 @@ enum Plan {
   MONTHLY
   QUARTERLY
   ANNUAL
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PENDING_PAYMENT
+  PAST_DUE
+  SUSPENDED
+  BLOCKED
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // Modelo para usuários do sistema (administradores das barbearias)
@@ -188,6 +214,7 @@ model Employee {
   company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   specialties  EmployeeSpecialty[]
+  blocks       EmployeeBlock[]
 
   @@map("employees")
 }
@@ -516,4 +543,73 @@ model OutboundMessage {
   createdAt DateTime @default(now())
   @@index([status, nextAttemptAt])
   @@map("outbound_messages")
+}
+
+model SubscriptionPayment {
+  id              String                    @id @default(cuid())
+  companyId       String
+  plan            Plan
+  amount          Decimal                   @db.Decimal(12, 2)
+  status          SubscriptionPaymentStatus @default(PENDING)
+  paymentMethod   String                    @default("PIX")
+  pixKey          String
+  pixBeneficiary  String
+  pixBank         String
+  payerNote       String?
+  proofFilePath   String?
+  proofFileName   String?
+  proofMimeType   String?
+  submittedAt     DateTime                  @default(now())
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewedByName  String?
+  rejectionReason String?
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status], map: "sub_payments_company_status_idx")
+  @@index([status, createdAt], map: "sub_payments_status_created_idx")
+  @@map("subscription_payments")
+}
+
+model SubscriptionNotificationLog {
+  id                    String   @id @default(cuid())
+  companyId             String
+  subscriptionPaymentId String?
+  type                  String
+  referenceDate         String
+  channel               String
+  status                String   @default("SENT")
+  recipient             String
+  message               String
+  dedupKey              String   @unique
+  errorMessage          String?
+  sentAt                DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, sentAt], map: "sub_notif_company_sent_idx")
+  @@index([type, referenceDate], map: "sub_notif_type_ref_idx")
+  @@map("subscription_notification_logs")
+}
+
+model EmployeeBlock {
+  id         String   @id @default(cuid())
+  companyId  String
+  employeeId String
+  date       String
+  startTime  String
+  endTime    String
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, employeeId, date], map: "employee_blocks_comp_emp_date_idx")
+  @@map("employee_blocks")
 }

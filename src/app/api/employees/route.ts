@@ -4,6 +4,7 @@ import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
+    await requireCompanySubscriptionAccess(auth.companyId)
 
     const employees = await prisma.employee.findMany({
       where: { companyId: auth.companyId },
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
+    await requireCompanySubscriptionAccess(auth.companyId)
 
     const body = employeeInput.parse(await request.json())
     const {

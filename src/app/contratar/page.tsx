@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { ArrowLeft, Check, CreditCard, Building, User } from 'lucide-react';
 import Link from 'next/link';
 import { trackConversionEvent } from '@/lib/landing-utils';
+import { formatCEP, formatCPF, formatPhone } from '@/lib/masks';
 import { passwordInput, validCpf } from '@/lib/validation';
 
 // Schema de validação com Zod
@@ -208,8 +209,7 @@ export default function ContractPage() {
           planId: data.plan,
           value: plans[data.plan].price,
         });
-        alert('Contratação realizada com sucesso! Redirecionando para o painel administrativo...');
-        window.location.href = '/dashboard';
+        window.location.href = '/dashboard/assinatura?welcome=1';
       } else {
         const errorMessage = result.error || 'Não foi possível concluir o cadastro. Verifique os dados informados.';
         setSubmitError(errorMessage);
@@ -225,17 +225,22 @@ export default function ContractPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="dashboard-shell min-h-screen text-white">
       {/* Header */}
-      <header className="border-b border-gray-800 py-4">
-        <div className="container mx-auto px-4 flex items-center">
-          <Link href="/" className="flex items-center text-gray-300 hover:text-orange-500 transition-colors">
-            <ArrowLeft size={20} className="mr-2" />
-            Voltar
-          </Link>
-          <div className="text-2xl font-bold text-orange-500 ml-8">
-            BarberPro
+      <header className="border-b border-white/10 bg-[#0c0f14]/90 py-4 backdrop-blur-md">
+        <div className="container mx-auto flex items-center justify-between px-4">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center text-sm text-slate-300 transition-colors hover:text-[#f5b51b]">
+              <ArrowLeft size={18} className="mr-2" />
+              Voltar
+            </Link>
+            <div className="ml-6 text-xl font-black tracking-[0.14em] text-white">
+              BARBER<span className="text-[#f5b51b]">PRO</span>
+            </div>
           </div>
+          <span className="rounded-full border border-[#f5b51b]/30 bg-[#f5b51b]/10 px-3 py-1 text-xs font-semibold text-[#f5b51b]">
+            7 dias grátis incluídos
+          </span>
         </div>
       </header>
 
@@ -601,10 +606,10 @@ export default function ContractPage() {
                   </div>
                   {errors.acceptTerms && <p id="acceptTerms-error" role="alert" className="text-red-400 text-sm">{errors.acceptTerms.message}</p>}
 
-                  <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg">
-                    <p className="text-yellow-400 text-sm">
-                      <strong>Nota:</strong> Este é um sistema de demonstração.
-                      Nenhum pagamento real será processado.
+                  <div className="rounded-xl border border-[#f5b51b]/25 bg-[#f5b51b]/10 p-4">
+                    <p className="text-sm text-amber-100">
+                      <strong className="text-[#f5b51b]">Avaliação gratuita de 7 dias + Pagamento via PIX:</strong>{' '}
+                      Ao concluir, seu acesso gratuito de 7 dias é liberado imediatamente e você verá os dados PIX oficiais (Caixa Econômica Federal) para ativar sua assinatura quando desejar.
                     </p>
                   </div>
                 </div>

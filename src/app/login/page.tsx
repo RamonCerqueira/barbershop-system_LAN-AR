@@ -11,13 +11,16 @@ import {
   Mail,
   KeyRound,
   X,
+  Scissors,
 } from "lucide-react";
 import Link from "next/link";
+import { SaasAlert, SaasField, SaasSubmitButton, saasInputClass } from "@/components/ui/SaasUI";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loginType, setLoginType] = useState<"company" | "admin">("company");
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -31,10 +34,13 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState("");
+  const [resetError, setResetError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
+    setLoginError("");
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -56,11 +62,11 @@ export default function Login() {
           window.location.href = "/dashboard";
         }
       } else {
-        alert(`Erro: ${data.error}`);
+        setLoginError(data.error || "Credenciais inválidas ou conta inativa.");
       }
     } catch (error) {
       console.error("Erro no login:", error);
-      alert("Erro interno. Tente novamente mais tarde.");
+      setLoginError("Erro interno de conexão. Tente novamente mais tarde.");
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +74,10 @@ export default function Login() {
 
   const handleRequestResetCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (resetLoading) return;
     setResetLoading(true);
     setResetMessage("");
+    setResetError("");
     try {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
@@ -81,7 +89,7 @@ export default function Login() {
       setResetMessage(data.message);
       setResetStep(2);
     } catch (err: any) {
-      alert(err.message);
+      setResetError(err.message);
     } finally {
       setResetLoading(false);
     }
@@ -89,7 +97,9 @@ export default function Login() {
 
   const handleConfirmReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (resetLoading) return;
     setResetLoading(true);
+    setResetError("");
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
@@ -102,149 +112,147 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao redefinir senha");
-      alert(data.message);
       setShowResetModal(false);
       setResetStep(1);
       setResetCode("");
       setNewPassword("");
       setFormData((prev) => ({ ...prev, email: resetEmail }));
+      alert(data.message);
     } catch (err: any) {
-      alert(err.message);
+      setResetError(err.message);
     } finally {
       setResetLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-orange-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
+    <div className="dashboard-shell flex min-h-screen items-center justify-center p-4 text-white">
+      <div className="w-full max-w-md space-y-6">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center">
           <Link
             href="/"
-            className="inline-flex items-center text-gray-300 hover:text-orange-500 transition-colors mb-6"
+            className="mb-6 inline-flex items-center text-sm text-slate-400 transition-colors hover:text-[#f5b51b]"
           >
-            <ArrowLeft size={20} className="mr-2" />
+            <ArrowLeft size={18} className="mr-2" />
             Voltar ao site
           </Link>
 
-          <div className="flex items-center justify-center mb-4">
-            <div className="text-4xl font-bold text-orange-500">BarberPro</div>
+          <div className="mb-4 flex items-center justify-center gap-3">
+            <span className="dashboard-brand-mark flex h-12 w-12 items-center justify-center rounded-2xl">
+              <Scissors size={24} />
+            </span>
+            <div className="text-2xl font-black tracking-[0.16em] text-white">
+              BARBER<span className="text-[#f5b51b]">PRO</span>
+            </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-white mb-2">Fazer Login</h1>
-          <p className="text-gray-400">Acesse sua conta para continuar</p>
+          <h1 className="text-2xl font-bold text-white">Acessar Plataforma</h1>
+          <p className="mt-1 text-sm text-[#a0a9b6]">
+            Entre com suas credenciais para gerenciar sua barbearia
+          </p>
         </div>
 
         {/* Login Type Selector */}
-        <div className="bg-gray-800 rounded-lg p-1 mb-6 flex">
+        <div className="flex rounded-2xl border border-white/10 bg-[#141920] p-1">
           <button
             type="button"
             onClick={() => setLoginType("company")}
-            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md text-sm font-medium transition-colors ${loginType === "company"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:text-white"
+            className={`flex flex-1 items-center justify-center rounded-xl py-2.5 px-4 text-xs font-semibold transition ${loginType === "company"
+              ? "bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] text-[#15120b]"
+              : "text-slate-400 hover:text-white"
               }`}
           >
-            <Building2 size={18} className="mr-2" />
-            Empresa
+            <Building2 size={16} className="mr-2" />
+            Barbearia
           </button>
           <button
             type="button"
             onClick={() => setLoginType("admin")}
-            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-md text-sm font-medium transition-colors ${loginType === "admin"
-                ? "bg-orange-500 text-white"
-                : "text-gray-400 hover:text-white"
+            className={`flex flex-1 items-center justify-center rounded-xl py-2.5 px-4 text-xs font-semibold transition ${loginType === "admin"
+              ? "bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] text-[#15120b]"
+              : "text-slate-400 hover:text-white"
               }`}
           >
-            <Crown size={18} className="mr-2" />
-            Administrador
+            <Crown size={16} className="mr-2" />
+            SuperAdmin
           </button>
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-lg shadow-xl p-8 text-gray-900">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Email
-              </label>
+        <div className="rounded-[18px] border border-white/[0.085] bg-gradient-to-br from-[#181d24] to-[#10141a] p-7 shadow-2xl">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {loginError && (
+              <SaasAlert variant="error" message={loginError} />
+            )}
+
+            <SaasField label="E-mail" required htmlFor="email">
               <div className="relative">
                 <Mail
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={20}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={17}
                 />
                 <input
                   id="email"
                   type="email"
                   required
+                  autoComplete="email"
                   value={formData.email}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className={`${saasInputClass} pl-10`}
                   placeholder="seu@email.com"
                 />
               </div>
-            </div>
+            </SaasField>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Senha
-              </label>
+            <SaasField label="Senha" required htmlFor="password">
               <div className="relative">
                 <Lock
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  size={20}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={17}
                 />
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   required
+                  autoComplete="current-password"
                   value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className={`${saasInputClass} pl-10 pr-11`}
                   placeholder="Sua senha"
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </div>
+            </SaasField>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            <div className="flex items-center justify-between text-xs">
+              <label className="flex cursor-pointer items-center gap-2 text-slate-300">
                 <input
                   id="remember"
                   type="checkbox"
-                  className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
+                  className="h-4 w-4 rounded accent-[#f5b51b]"
                 />
-                <label
-                  htmlFor="remember"
-                  className="ml-2 block text-sm text-gray-700"
-                >
-                  Lembrar de mim
-                </label>
-              </div>
+                <span>Lembrar de mim</span>
+              </label>
               <button
                 type="button"
-                className="text-sm text-orange-500 hover:text-orange-600 font-medium"
+                className="font-semibold text-[#f5b51b] hover:text-amber-300"
                 onClick={() => {
                   setResetEmail(formData.email);
                   setResetStep(1);
                   setResetMessage("");
+                  setResetError("");
                   setShowResetModal(true);
                 }}
               >
@@ -252,157 +260,121 @@ export default function Login() {
               </button>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg font-medium transition-colors"
-            >
-              {isLoading ? "Entrando..." : "Entrar"}
-            </button>
+            <SaasSubmitButton loading={isLoading} loadingText="Entrando..." className="w-full py-3">
+              Entrar no Sistema
+            </SaasSubmitButton>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Não tem uma conta?{" "}
+          <div className="mt-6 border-t border-white/10 pt-5 text-center">
+            <p className="text-sm text-slate-400">
+              Ainda não tem conta?{" "}
               <Link
                 href="/contratar"
-                className="text-orange-500 hover:text-orange-600 font-medium"
+                className="font-semibold text-[#f5b51b] hover:text-amber-300"
               >
-                Contratar agora
+                Testar 7 dias grátis
               </Link>
             </p>
           </div>
-
-          {/* Info Box */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            {loginType === "company" ? (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Acesso para Empresas
-                </h4>
-                <p className="text-sm text-gray-600">
-                  Use suas credenciais de empresa para acessar o painel
-                  administrativo da sua barbearia.
-                </p>
-              </div>
-            ) : (
-              <div>
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Acesso Administrativo
-                </h4>
-                <p className="text-sm text-gray-600">
-                  Área restrita para proprietários do sistema BarberPro.
-                  Gerencie todas as empresas cadastradas.
-                </p>
-              </div>
-            )}
-          </div>
         </div>
-
       </div>
 
       {/* Modal de Recuperação de Senha */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white text-gray-900 rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="dashboard-dialog-panel w-full max-w-md rounded-[18px] border border-white/10 bg-[#141920] p-6 text-white shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <KeyRound className="text-orange-500" size={22} />
+                <KeyRound className="text-[#f5b51b]" size={20} />
                 <h3 className="text-lg font-bold">Recuperar Senha</h3>
               </div>
               <button
                 onClick={() => setShowResetModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-slate-400 hover:text-white"
               >
                 <X size={20} />
               </button>
             </div>
 
+            {resetError && (
+              <div className="mb-4">
+                <SaasAlert variant="error" message={resetError} />
+              </div>
+            )}
+
             {resetStep === 1 ? (
               <form onSubmit={handleRequestResetCode} className="space-y-4">
-                <p className="text-sm text-gray-600">
-                  Informe o e-mail da sua conta para receber as instruções de
-                  recuperação por e-mail.
+                <p className="text-xs text-slate-300">
+                  Informe o e-mail cadastrado para receber o código de recuperação.
                 </p>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    E-mail cadastrado
-                  </label>
+                <SaasField label="E-mail cadastrado" required htmlFor="reset-email">
                   <input
+                    id="reset-email"
                     type="email"
                     required
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-500"
+                    className={saasInputClass}
                     placeholder="seu@email.com"
                   />
-                </div>
+                </SaasField>
                 <div className="flex justify-end space-x-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setShowResetModal(false)}
-                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    className="rounded-xl px-4 py-2 text-xs text-slate-400 hover:text-white"
                   >
                     Cancelar
                   </button>
-                  <button
-                    type="submit"
-                    disabled={resetLoading}
-                    className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium"
-                  >
-                    {resetLoading ? "Gerando..." : "Gerar Código"}
-                  </button>
+                  <SaasSubmitButton loading={resetLoading} loadingText="Enviando...">
+                    Enviar Código
+                  </SaasSubmitButton>
                 </div>
               </form>
             ) : (
               <form onSubmit={handleConfirmReset} className="space-y-4">
                 {resetMessage && (
-                  <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-800">
-                    {resetMessage}
-                  </div>
+                  <SaasAlert variant="info" message={resetMessage} />
                 )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Código de Recuperação
-                  </label>
+                <SaasField label="Código de Recuperação" required htmlFor="reset-code">
                   <input
+                    id="reset-code"
                     type="text"
                     required
                     value={resetCode}
                     onChange={(e) => setResetCode(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-500"
+                    className={saasInputClass}
                     placeholder="Cole o código enviado por e-mail"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nova Senha
-                  </label>
+                </SaasField>
+                <SaasField
+                  label="Nova Senha"
+                  required
+                  htmlFor="reset-new-password"
+                  hint="Mínimo 8 caracteres, com letra, número e símbolo."
+                >
                   <input
+                    id="reset-new-password"
                     type="password"
                     required
                     minLength={8}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-orange-500"
+                    className={saasInputClass}
                     placeholder="8+ caracteres, letra, número e símbolo"
                   />
-                </div>
+                </SaasField>
                 <div className="flex justify-end space-x-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setResetStep(1)}
-                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    className="rounded-xl px-4 py-2 text-xs text-slate-400 hover:text-white"
                   >
                     Voltar
                   </button>
-                  <button
-                    type="submit"
-                    disabled={resetLoading}
-                    className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium"
-                  >
-                    {resetLoading ? "Salvando..." : "Redefinir Senha"}
-                  </button>
+                  <SaasSubmitButton loading={resetLoading} loadingText="Salvando...">
+                    Redefinir Senha
+                  </SaasSubmitButton>
                 </div>
               </form>
             )}

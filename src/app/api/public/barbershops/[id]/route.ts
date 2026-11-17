@@ -42,15 +42,35 @@ export async function GET(
       const startOfDay = new Date(y, m - 1, d, 0, 0, 0, 0)
       const endOfDay = new Date(y, m - 1, d, 23, 59, 59, 999)
 
-      const appointments = await prisma.appointment.findMany({
-        where: {
-          companyId: company.id,
-          date: { gte: startOfDay, lte: endOfDay },
-          status: { notIn: ['CANCELLED', 'NO_SHOW'] }
-        },
-        select: { time: true, employeeId: true, duration: true }
+      const [appointments, blocks] = await Promise.all([
+        prisma.appointment.findMany({
+          where: {
+            companyId: company.id,
+            date: { gte: startOfDay, lte: endOfDay },
+            status: { notIn: ['CANCELLED', 'NO_SHOW'] }
+          },
+          select: { time: true, employeeId: true, duration: true }
+        }),
+        prisma.employeeBlock.findMany({
+          where: {
+            companyId: company.id,
+            date: dateParam
+          },
+          select: { employeeId: true, startTime: true, endTime: true }
+        })
+      ])
+
+      const blockSlots = blocks.map((b) => {
+        const [sh, sm] = b.startTime.split(':').map(Number)
+        const [eh, em] = b.endTime.split(':').map(Number)
+        return {
+          time: b.startTime,
+          employeeId: b.employeeId,
+          duration: Math.max(1, (eh * 60 + em) - (sh * 60 + sm))
+        }
       })
-      bookedSlots = appointments
+
+      bookedSlots = [...appointments, ...blockSlots]
     }
 
     const bh = (company.settings?.businessHours as any) || {}

@@ -2,6 +2,7 @@ import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
+import { evaluateCompanySubscription } from '@/lib/subscription'
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,21 +78,27 @@ export async function GET(request: NextRequest) {
         totalAppointments,
         totalTransactedVolume: totalSales._sum.amount || 0
       },
-      companies: companies.map((c) => ({
-        id: c.id,
-        name: c.name,
-        owner: c.fullName,
-        email: c.email,
-        phone: c.phone,
-        cpf: c.cpf,
-        address: c.address,
-        plan: c.plan,
-        planPrice: c.planPrice,
-        isActive: c.isActive,
-        status: c.isActive ? 'active' : 'suspended',
-        joinDate: c.createdAt.toISOString().split('T')[0],
-        counts: c._count
-      })),
+      companies: companies.map((c) => {
+        const sub = evaluateCompanySubscription(c)
+        return {
+          id: c.id,
+          name: c.name,
+          owner: c.fullName,
+          email: c.email,
+          phone: c.phone,
+          cpf: c.cpf,
+          address: c.address,
+          plan: c.plan,
+          planPrice: c.planPrice,
+          isActive: c.isActive,
+          status: c.isActive ? 'active' : 'suspended',
+          subscriptionStatus: sub.effectiveStatus,
+          subscriptionDaysRemaining: sub.daysRemaining,
+          subscriptionExpiresAt: sub.expiresAt.toISOString(),
+          joinDate: c.createdAt.toISOString().split('T')[0],
+          counts: c._count
+        }
+      }),
       monthlyRevenue: revenueHistory
     })
   } catch (error) {

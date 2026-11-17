@@ -4,11 +4,13 @@ import { getAuthUser } from '@/lib/auth'
 import { queueMessage } from '@/lib/messages'
 import { apiError, HttpError } from '@/lib/http'
 import { rateLimit } from '@/lib/rate-limit'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
 import { z } from 'zod'
 export async function POST(request: NextRequest) {
   try {
     const auth=await getAuthUser(request)
     if(!auth?.companyId)throw new HttpError(401,'Não autorizado')
+    await requireCompanySubscriptionAccess(auth.companyId)
     await rateLimit(request,'whatsapp',auth.companyId,30)
     const body=z.object({to:z.string(),message:z.string().max(4000),campaignId:z.string().optional(),clientId:z.string().optional()}).parse(await request.json())
     const key=request.headers.get('idempotency-key')

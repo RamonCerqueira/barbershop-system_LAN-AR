@@ -21,7 +21,10 @@ import {
   UserRound,
   ChevronDown,
   Crown,
-  Package
+  Package,
+  CreditCard,
+  Lock,
+  CalendarOff
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiFetch } from '@/lib/api'
@@ -44,15 +47,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [userInfo, setUserInfo] = useState<{ name?: string; companyName?: string } | null>(null)
   const [showMoreModules, setShowMoreModules] = useState(false)
+  const [subscriptionInfo, setSubscriptionInfo] = useState<{
+    effectiveStatus: string
+    isTrial: boolean
+    isBlocked: boolean
+    daysRemaining: number
+    warningLevel: string
+    message: string
+  } | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
   const loadNotifications = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/notifications')
-      if (res.ok) {
-        const data = await res.json()
+      const [notifRes, subRes] = await Promise.all([
+        apiFetch('/api/notifications'),
+        apiFetch('/api/subscription')
+      ])
+      if (notifRes.ok) {
+        const data = await notifRes.json()
         setNotifications(Array.isArray(data) ? data : [])
+      }
+      if (subRes.ok) {
+        const subData = await subRes.json()
+        if (subData?.subscription) {
+          setSubscriptionInfo(subData.subscription)
+        }
       }
     } catch (err) {
       console.error('Erro ao carregar notificações:', err)
@@ -126,10 +146,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/dashboard/colaboradores', label: 'Profissionais', icon: UserRound, exact: true },
     { href: '/dashboard/caixa', label: 'Financeiro', icon: DollarSign, exact: false },
     { href: '/dashboard/analise-servicos', label: 'Relatórios', icon: BarChart2, exact: false },
+    { href: '/dashboard/assinatura', label: 'Assinatura & PIX', icon: CreditCard, exact: false },
     { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, exact: false }
   ]
   const moreItems = [
     { href: '/dashboard/agendamentos-calendario', label: 'Calendário', icon: CalendarDays },
+    { href: '/dashboard/bloqueios', label: 'Bloqueios & Folgas', icon: CalendarOff },
+    { href: '/dashboard/comissoes', label: 'Comissões', icon: DollarSign },
     { href: '/dashboard/colaboradores-especialidades', label: 'Especialidades', icon: Award },
     { href: '/dashboard/produtos', label: 'Produtos', icon: Package },
     { href: '/dashboard/campanhas-whatsapp', label: 'Campanhas WhatsApp', icon: MessageSquare }
@@ -165,7 +188,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             type="button"
             onClick={() => setIsSidebarOpen(false)}
             aria-label="Fechar navegação"
-              className="absolute right-2 top-2 rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-white md:hidden"
+            className="absolute right-2 top-2 rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-white md:hidden"
           >
             <X size={24} />
           </button>
@@ -186,8 +209,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     href={item.href}
                     aria-current={isActive ? 'page' : undefined}
                     className={`dashboard-nav-link group flex h-[51px] items-center rounded-[11px] px-3.5 text-[15px] transition-all duration-200 ${isActive
-                        ? 'dashboard-nav-active text-white font-semibold'
-                        : 'text-slate-400 hover:text-white'
+                      ? 'dashboard-nav-active text-white font-semibold'
+                      : 'text-slate-400 hover:text-white'
                       }`}
                   >
                     <span className="dashboard-nav-icon mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors">
@@ -276,7 +299,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     {notifications.length > 0 && (
                       <button
                         onClick={clearAllNotifications}
-                      className="text-xs font-semibold text-amber-300 transition hover:text-amber-200"
+                        className="text-xs font-semibold text-amber-300 transition hover:text-amber-200"
                       >
                         Limpar todas
                       </button>
@@ -301,8 +324,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                               </p>
                               <p
                                 className={`text-sm mt-0.5 ${notification.isRead
-                                    ? 'text-slate-400'
-                                    : 'text-white font-medium'
+                                  ? 'text-slate-400'
+                                  : 'text-white font-medium'
                                   }`}
                               >
                                 {notification.message}
@@ -330,7 +353,43 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        <div className={`dashboard-content dashboard-page-enter flex-1 overflow-y-auto ${isDashboardHome ? 'dashboard-content-home' : 'p-4 sm:p-6 xl:p-8'}`}>{children}</div>
+        <div className={`dashboard-content dashboard-page-enter flex-1 overflow-y-auto ${isDashboardHome ? 'dashboard-content-home' : 'p-4 sm:p-6 xl:p-8'}`}>
+          {subscriptionInfo && !subscriptionInfo.isBlocked && (subscriptionInfo.isTrial || subscriptionInfo.daysRemaining <= 7) && pathname !== '/dashboard/assinatura' && (
+            <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#f5b51b]/30 bg-[#181d24]/95 px-4 py-3 text-sm text-slate-200 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2.5">
+                <CreditCard size={18} className="shrink-0 text-[#f5b51b]" />
+                <span>{subscriptionInfo.message}</span>
+              </div>
+              <Link
+                href="/dashboard/assinatura"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] px-3.5 py-1.5 text-xs font-bold text-[#15120b] transition hover:brightness-110"
+              >
+                Pagar via PIX
+              </Link>
+            </div>
+          )}
+
+          {subscriptionInfo?.isBlocked && pathname !== '/dashboard/assinatura' ? (
+            <div className="mx-auto my-10 max-w-xl rounded-[18px] border border-red-500/30 bg-gradient-to-br from-[#181d24] to-[#10141a] p-8 text-center shadow-2xl">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+                <Lock size={28} />
+              </div>
+              <h2 className="text-xl font-bold text-white">Acesso Temporariamente Bloqueado</h2>
+              <p className="mt-2 text-sm text-slate-300">{subscriptionInfo.message}</p>
+              <div className="mt-6 flex justify-center">
+                <Link
+                  href="/dashboard/assinatura"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] px-6 py-3 text-sm font-bold text-[#15120b] transition hover:brightness-110"
+                >
+                  <CreditCard size={18} />
+                  Regularizar Assinatura via PIX
+                </Link>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
+        </div>
       </main>
     </div>
   )

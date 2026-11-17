@@ -14,6 +14,7 @@ import {
   Star
 } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import { formatPhone } from '@/lib/masks'
 
 interface Client {
   id: string
@@ -106,13 +107,13 @@ export default function Clientes() {
     try {
       const res = editingClient
         ? await apiFetch(`/api/clients/${editingClient.id}`, {
-            method: 'PUT',
-            body: JSON.stringify(formData)
-          })
+          method: 'PUT',
+          body: JSON.stringify(formData)
+        })
         : await apiFetch('/api/clients', {
-            method: 'POST',
-            body: JSON.stringify(formData)
-          })
+          method: 'POST',
+          body: JSON.stringify(formData)
+        })
 
       if (!res.ok) {
         const err = await res.json()
@@ -349,8 +350,9 @@ export default function Clientes() {
                 <input
                   type="tel"
                   required
+                  maxLength={15}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
                   placeholder="(11) 99999-9999"
                 />

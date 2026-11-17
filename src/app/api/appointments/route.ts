@@ -4,6 +4,7 @@ import { apiError } from '@/lib/http'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
+    await requireCompanySubscriptionAccess(auth.companyId)
 
     const { searchParams } = new URL(request.url)
     const dateParam = searchParams.get('date')
@@ -78,8 +80,7 @@ export async function GET(request: NextRequest) {
 
     return jsonResponse(formatted)
   } catch (error) {
-    console.error('Erro ao buscar agendamentos:', error)
-    return jsonResponse({ error: 'Erro ao buscar agendamentos' }, { status: 500 })
+    return apiError(error)
   }
 }
 
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthUser(request)
     if (!auth?.companyId) return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
+    await requireCompanySubscriptionAccess(auth.companyId)
     const result = await createBooking(await request.json(), auth.companyId, request.headers.get('idempotency-key'))
     const token = result.confirmationToken
     return jsonResponse({ ...formatAppointment(result.appointment), confirmationLink: token ? '/confirm/' + result.appointment.id + '?token=' + token : undefined }, { status: result.repeated ? 200 : 201 })

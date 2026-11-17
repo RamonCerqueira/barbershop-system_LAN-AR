@@ -4,6 +4,7 @@ import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
 
 const CATEGORY_MAP: Record<string, 'BEVERAGES' | 'SNACKS' | 'GAMES' | 'OTHER'> = {
   BEVERAGES: 'BEVERAGES',
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
+    await requireCompanySubscriptionAccess(auth.companyId)
 
     const products = await prisma.product.findMany({
       where: { companyId: auth.companyId },
@@ -38,6 +40,7 @@ export async function POST(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
+    await requireCompanySubscriptionAccess(auth.companyId)
 
     const body = productInput.parse(await request.json())
     const { name, description, category, price, stock, minStock, isActive } = body

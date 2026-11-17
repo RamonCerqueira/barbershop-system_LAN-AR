@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { NextRequest } from 'next/server'
 import { prisma } from './prisma'
 import { jwtSecret, SESSION_SECONDS } from './security'
+import { addDays, formatBrDate, TRIAL_DAYS } from './subscription'
 
 export interface AuthUserPayload {
   id: string
@@ -141,6 +142,8 @@ export async function createCompany(data: {
   }
 
   const hashedPassword = await hashPassword(data.password)
+  const now = new Date()
+  const trialEndsAt = addDays(now, TRIAL_DAYS)
 
   return prisma.$transaction(async (tx) => {
     const company = await tx.company.create({
@@ -153,7 +156,10 @@ export async function createCompany(data: {
         address: data.address,
         phone: data.phone,
         plan: data.plan,
-        planPrice: planPrices[data.plan]
+        planPrice: planPrices[data.plan],
+        subscriptionStatus: 'TRIAL',
+        trialStartedAt: now,
+        trialEndsAt
       }
     })
 
@@ -218,8 +224,8 @@ export async function createCompany(data: {
 
     await tx.notification.create({
       data: {
-        title: 'Bem-vindo ao BarberPro!',
-        message: `A barbearia ${company.name} foi cadastrada com sucesso. Configure seus serviços e colaboradores.`,
+        title: 'Bem-vindo ao BarberPro! Período gratuito de 7 dias ativado',
+        message: `A barbearia ${company.name} foi cadastrada com sucesso. Seu acesso gratuito de 7 dias vai até ${formatBrDate(trialEndsAt)}. Você já pode configurar seus serviços ou enviar o pagamento PIX na aba Assinatura.`,
         type: 'SYSTEM',
         companyId: company.id,
         userId: user.id

@@ -1,6 +1,7 @@
 import { jsonResponse } from '@/lib/json'
 import { registerSale } from '@/lib/sales'
 import { apiError } from '@/lib/http'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthUser(request)
     if (!auth?.companyId) return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
+    await requireCompanySubscriptionAccess(auth.companyId)
     const result = await registerSale(await request.json(),auth.companyId,auth.id,request.headers.get('idempotency-key'))
     return jsonResponse(result.sale, { status: result.repeated ? 200 : 201 })
   } catch (error) { return apiError(error) }

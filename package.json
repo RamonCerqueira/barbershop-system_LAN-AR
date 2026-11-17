@@ -12,18 +12,27 @@
     "db:seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
     "db:setup": "prisma generate && prisma migrate deploy",
     "send-whatsapp-reminders": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/sendWhatsappReminders.ts",
+    "send-subscription-reminders": "ts-node --compiler-options {\"module\":\"CommonJS\"} scripts/sendSubscriptionReminders.ts",
     "typecheck": "tsc -p tsconfig.check.json --noEmit",
     "db:migrate": "prisma migrate deploy",
     "db:validate": "prisma validate",
     "test": "node scripts/test-integration.cjs",
+    "test:subscription": "node scripts/test-subscription.cjs",
     "owner:bootstrap": "node scripts/bootstrap-owner.cjs",
     "env:check": "node scripts/check-env.cjs",
-    "test:http": "node scripts/test-integration.cjs --http"
+    "test:http": "node scripts/test-integration.cjs --http",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/ios": "^7.2.0",
+    "@capacitor/status-bar": "^7.0.1",
     "@hookform/resolvers": "^5.2.1",
     "@prisma/client": "^6.14.0",
     "@types/bcryptjs": "^2.4.6",
@@ -44,6 +53,7 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.2.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
