@@ -17,19 +17,75 @@ async function authorized(request: NextRequest, id: string) {
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const a = await authorized(request,(await params).id)
-    return jsonResponse({ id: a.id, date: a.date.toISOString().slice(0,10), time: a.time, status: a.status, price: a.price, duration: a.duration, clientName: a.client.fullName, serviceName: a.service.name, employeeName: a.employee.name, companyName: a.company.name, companyAddress: a.company.address, companyPhone: a.company.phone })
+    const cfg = (a.company.settings?.appointmentConfig as Record<string, unknown>) || {}
+    const requirePrepayment = Boolean(cfg.requirePrepaymentToConfirm)
+    const paymentDeadlineHours = Number(cfg.paymentDeadlineHours ?? 2)
+    const cancellationDeadline = Number(cfg.cancellationDeadline ?? 2)
+    const pix = cfg.pixKey
+      ? {
+          key: String(cfg.pixKey),
+          beneficiary: String(cfg.pixBeneficiary || a.company.fullName),
+          bank: String(cfg.pixBank || '')
+        }
+      : null
+
+    return jsonResponse({
+      id: a.id,
+      date: a.date.toISOString().slice(0, 10),
+      time: a.time,
+      status: a.status,
+      price: a.price,
+      duration: a.duration,
+      clientName: a.client.fullName,
+      serviceName: a.service.name,
+      employeeName: a.employee.name,
+      companyName: a.company.name,
+      companyAddress: a.company.address,
+      companyPhone: a.company.phone,
+      requirePrepaymentToConfirm: requirePrepayment,
+      paymentDeadlineHours,
+      cancellationDeadline,
+      pix
+    })
   } catch (error) { return apiError(error) }
 }
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await rateLimit(request,'public-confirmation','',30)
     const a = await authorized(request,(await params).id)
-    const { status } = z.object({ status: z.enum(['CONFIRMED','CANCELLED']) }).parse(await request.json())
+    const body = z.object({
+      status: z.enum(['CONFIRMED','CANCELLED']).optional(),
+      notifyPayment: z.boolean().optional()
+    }).parse(await request.json())
+
+    const cfg = (a.company.settings?.appointmentConfig as Record<string, unknown>) || {}
+    const requirePrepayment = Boolean(cfg.requirePrepaymentToConfirm)
+    const hours = Number(cfg.cancellationDeadline ?? 2)
+    const instant = bookingInstant(a.date.toISOString().slice(0,10),a.time)
+
+    if (body.notifyPayment) {
+      if (a.status !== 'SCHEDULED') throw new HttpError(409, 'Este agendamento não está aguardando pagamento.')
+      await prisma.notification.create({
+        data: {
+          companyId: a.companyId,
+          type: 'PAYMENT',
+          title: 'Cliente informou pagamento PIX do agendamento',
+          message: `${a.client.fullName} informou que pagou o PIX para o horário ${a.date.toISOString().slice(0,10)} às ${a.time} (${a.service.name}). Confira e confirme a vaga manualmente.`
+        }
+      })
+      return jsonResponse({ id: a.id, status: a.status, paymentNotified: true })
+    }
+
+    if (!body.status) throw new HttpError(400, 'Ação obrigatória.')
+    const status = body.status
+
+    if (status === 'CONFIRMED' && requirePrepayment) {
+      throw new HttpError(409, 'Esta barbearia confirma a vaga após conferir o pagamento via PIX. Avise o pagamento para análise.')
+    }
+
     assertTransition(a.status,status)
     if (a.status === status) return jsonResponse({ id: a.id,status })
-    const hours = Number((a.company.settings?.appointmentConfig as { cancellationDeadline?: number })?.cancellationDeadline ?? 2)
-    const instant = bookingInstant(a.date.toISOString().slice(0,10),a.time)
-    if (instant <= new Date() || (status === 'CANCELLED' && instant.getTime() - Date.now() < hours * 3_600_000)) throw new HttpError(409,'O prazo para esta alteração terminou. Contate a barbearia.')
+    if (instant <= new Date() || (status === 'CANCELLED' && instant.getTime() - Date.now() < hours * 3_600_000)) throw new HttpError(409,`O prazo para esta alteração terminou (limite de ${hours}h antes). Contate a barbearia.`)
     await prisma.$transaction(async tx => {
       const changed = await tx.appointment.updateMany({ where: { id: a.id, status: a.status, confirmationHash: a.confirmationHash }, data: { status } })
       if (!changed.count) throw new HttpError(409,'O agendamento foi alterado. Atualize a página.')

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { CheckCircle, XCircle, Calendar, Clock, Scissors, MapPin } from 'lucide-react'
+import { CheckCircle, XCircle, Calendar, Clock, Scissors, MapPin, Copy, Check, QrCode, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 interface AppointmentDetails {
@@ -18,6 +18,14 @@ interface AppointmentDetails {
   companyName: string
   companyAddress: string
   companyPhone: string
+  requirePrepaymentToConfirm?: boolean
+  paymentDeadlineHours?: number
+  cancellationDeadline?: number
+  pix?: {
+    key: string
+    beneficiary: string
+    bank: string
+  } | null
 }
 
 export default function ConfirmAppointmentPage() {
@@ -27,12 +35,19 @@ export default function ConfirmAppointmentPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [error, setError] = useState('')
+  const [paymentNotified, setPaymentNotified] = useState(false)
+  const [copiedPix, setCopiedPix] = useState(false)
 
   useEffect(() => {
     if (!id) return
     const token = new URLSearchParams(window.location.search).get('token')
-    if (token) { sessionStorage.setItem('confirmation:' + id, token); window.history.replaceState(null,'',window.location.pathname) }
-    fetch('/api/public/appointments/' + id, { headers: { 'X-Confirmation-Token': sessionStorage.getItem('confirmation:' + id) || '' } })
+    if (token) {
+      sessionStorage.setItem('confirmation:' + id, token)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+    fetch('/api/public/appointments/' + id, {
+      headers: { 'X-Confirmation-Token': sessionStorage.getItem('confirmation:' + id) || '' }
+    })
       .then(async (res) => {
         if (!res.ok) throw new Error('Agendamento não encontrado')
         return res.json()
@@ -42,126 +57,209 @@ export default function ConfirmAppointmentPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const handleAction = async (status: 'CONFIRMED' | 'CANCELLED') => {
-    setUpdating(true)
-    try {
-      const res = await fetch(`/api/public/appointments/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'X-Confirmation-Token': sessionStorage.getItem('confirmation:' + id) || '' },
-        body: JSON.stringify({ status })
-      })
-      const result = await res.json()
-      if (!res.ok) { setError(result.error || 'Não foi possível alterar o agendamento.'); return }
-      if (res.ok) {
-        const updated = result
-        setAppointment((prev) => (prev ? { ...prev, status: updated.status } : prev))
+    const handleAction = async (payload: { status?: 'CONFIRMED' | 'CANCELLED'; notifyPayment?: boolean }) => {
+      setUpdating(true)
+      setError('')
+      try {
+        const res = await fetch(`/api/public/appointments/${id}`, {
+          method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Confirmation-Token': sessionStorage.getItem('confirmation:' + id) || ''
+          },
+          body: JSON.stringify(payload)
+        })
+        const result = await res.json()
+          if (!res.ok) {
+            setError(result.error || 'Não foi possível atualizar o agendamento.')
+            return
+          }
+          if (result.paymentNotified) {
+            setPaymentNotified(true)
+          } else if (result.status) {
+            setAppointment((prev) => (prev ? { ...prev, status: result.status } : prev))
+          }
+        } finally {
+          setUpdating(false)
+        }
       }
-    } finally {
-      setUpdating(false)
-    }
+
+  const handleCopyPix = async () => {
+        if (!appointment?.pix?.key) return
+        try {
+          await navigator.clipboard.writeText(appointment.pix.key)
+          setCopiedPix(true)
+          setTimeout(() => setCopiedPix(false), 2500)
+        } catch {
+          // ignore
+        }
+      }
+
+      if (loading) {
+        return (
+            <div className="dashboard-shell flex min-h-screen items-center justify-center text-white">
+              Carregando dados do agendamento...
+            </div>
+            )
   }
 
-  if (loading) {
+  if (!appointment) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        Carregando dados do agendamento...
-      </div>
-    )
+                <div className="dashboard-shell flex min-h-screen flex-col items-center justify-center p-4 text-white">
+                  <p className="mb-4 text-lg text-red-400">{error || 'Agendamento não encontrado'}</p>
+                  <Link href="/cliente" className="text-[#f5b51b] hover:underline">
+                    Ir para o Portal do Cliente
+                  </Link>
+                </div>
+                )
   }
 
-  if (error || !appointment) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-4">
-        <p className="text-red-400 text-lg mb-4">{error || 'Agendamento não encontrado'}</p>
-        <Link href="/cliente" className="text-orange-500 hover:underline">
-          Ir para o Portal do Cliente
-        </Link>
-      </div>
-    )
-  }
+                const cancelHours = appointment.cancellationDeadline ?? 2
+                const payHours = appointment.paymentDeadlineHours ?? 2
 
-  return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-orange-500">{appointment.companyName}</h1>
-          <p className="text-sm text-gray-400 mt-1">Confirmação de Agendamento</p>
-        </div>
+                return (
+                    <div className="dashboard-shell flex min-h-screen items-center justify-center p-4 text-white">
+                      <div className="w-full max-w-md space-y-5 rounded-[18px] border border-white/10 bg-gradient-to-br from-[#181d24] to-[#10141a] p-6 shadow-2xl">
+                        <div className="text-center">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f5b51b]">
+                            Confirmação de Horário
+                          </p>
+                          <h1 className="mt-1 text-2xl font-bold text-white">{appointment.companyName}</h1>
+                        </div>
 
-        <div className="bg-gray-900 rounded-xl p-4 space-y-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-400">Cliente:</span>
-            <span className="font-semibold text-white">{appointment.clientName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400 flex items-center gap-1">
-              <Scissors size={14} /> Serviço:
-            </span>
-            <span className="font-semibold text-white">{appointment.serviceName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Profissional:</span>
-            <span className="font-semibold text-white">{appointment.employeeName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400 flex items-center gap-1">
-              <Calendar size={14} /> Data:
-            </span>
-            <span className="font-semibold text-white">
-              {new Date(appointment.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400 flex items-center gap-1">
-              <Clock size={14} /> Horário:
-            </span>
-            <span className="font-semibold text-white">{appointment.time}</span>
-          </div>
-          <div className="flex justify-between border-t border-gray-800 pt-2">
-            <span className="text-gray-400">Valor:</span>
-            <span className="font-bold text-orange-400">
-              R$ {appointment.price.toFixed(2)}
-            </span>
-          </div>
-          <div className="text-xs text-gray-400 flex items-start gap-1 pt-1">
-            <MapPin size={14} className="shrink-0 mt-0.5" />
-            <span>{appointment.companyAddress}</span>
-          </div>
-        </div>
+                          {error && (
+                            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+                              {error}
+                            </div>
+                          )}
 
-        {appointment.status === 'CONFIRMED' ? (
-          <div className="p-4 bg-green-500/20 border border-green-500/40 rounded-xl text-center">
-            <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
-            <p className="font-semibold text-green-300">Presença Confirmada!</p>
-            <p className="text-xs text-gray-300 mt-1">
-              Te esperamos no horário agendado.
-            </p>
-          </div>
-        ) : appointment.status === 'CANCELLED' ? (
-          <div className="p-4 bg-red-500/20 border border-red-500/40 rounded-xl text-center">
-            <XCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-            <p className="font-semibold text-red-300">Agendamento Cancelado</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              disabled={updating}
-              onClick={() => handleAction('CANCELLED')}
-              className="py-3 px-4 bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 rounded-xl font-medium transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              disabled={updating}
-              onClick={() => handleAction('CONFIRMED')}
-              className="py-3 px-4 bg-green-600 hover:bg-green-500 text-white rounded-xl font-medium transition-colors"
-            >
-              Confirmar Presença
-            </button>
-          </div>
+                          <div className="space-y-3 rounded-xl border border-white/10 bg-[#0d1117] p-4 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Cliente:</span>
+                              <span className="font-semibold text-white">{appointment.clientName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="flex items-center gap-1 text-slate-400">
+                                  <Scissors size={14} /> Serviço:
+                                </span>
+                                <span className="font-semibold text-white">{appointment.serviceName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">Profissional:</span>
+                              <span className="font-semibold text-white">{appointment.employeeName}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="flex items-center gap-1 text-slate-400">
+                                  <Calendar size={14} /> Data:
+                                </span>
+                                <span className="font-semibold text-white">
+                                  {new Date(appointment.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="flex items-center gap-1 text-slate-400">
+                                  <Clock size={14} /> Horário:
+                                </span>
+                                <span className="font-semibold text-white">{appointment.time}</span>
+                            </div>
+                                <div className="flex justify-between border-t border-white/10 pt-2">
+                                  <span className="text-slate-400">Valor:</span>
+                                  <span className="font-bold text-[#f5b51b]">
+                                    R$ {Number(appointment.price).toFixed(2)}
+                                  </span>
+                                </div>
+                                  <div className="flex items-start gap-1.5 pt-1 text-xs text-slate-400">
+                                    <MapPin size={14} className="mt-0.5 shrink-0 text-[#f5b51b]" />
+                                    <span>{appointment.companyAddress}</span>
+                                  </div>
+                                </div>
+
+                                {/* Pagamento PIX da barbearia (quando exigido para confirmar a vaga) */}
+                                {appointment.status === 'SCHEDULED' && appointment.requirePrepaymentToConfirm && appointment.pix && (
+                                  <div className="space-y-3 rounded-xl border border-[#f5b51b]/30 bg-[#f5b51b]/10 p-4 text-xs">
+                                    <div className="flex items-center gap-2 font-bold text-[#f5b51b]">
+                                      <QrCode size={16} />
+                                      <span>Pagamento PIX para Confirmar a Vaga</span>
+                                    </div>
+                                    <p className="text-amber-100">
+                                      Pague até <strong>{payHours} horas antes</strong> do seu horário. Caso não haja confirmação do pagamento pela barbearia até esse prazo, a vaga será cancelada automaticamente.
+                                    </p>
+                                    <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/40 px-3 py-2">
+                                      <div>
+                                        <p className="text-[10px] text-slate-400">Chave PIX ({appointment.pix.beneficiary})</p>
+                                        <p className="font-mono text-sm font-bold text-white">{appointment.pix.key}</p>
+                                        {appointment.pix.bank && (
+                                          <p className="text-[10px] text-slate-400">{appointment.pix.bank}</p>
+                                        )}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={handleCopyPix}
+                                        className="inline-flex items-center gap-1 rounded-lg bg-[#f5b51b] px-2.5 py-1.5 text-xs font-bold text-[#15120b]"
+                                      >
+                                        {copiedPix ? <Check size={13} /> : <Copy size={13} />}
+                                        <span>{copiedPix ? 'Copiada' : 'Copiar'}</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {appointment.status === 'CONFIRMED' ? (
+                                      <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 p-4 text-center">
+                                        <CheckCircle className="mx-auto mb-2 h-8 w-8 text-emerald-400" />
+                                        <p className="font-semibold text-emerald-300">Vaga Confirmada!</p>
+                                        <p className="mt-1 text-xs text-slate-300">
+                                          Te esperamos no horário agendado.
+                                        </p>
+                                      </div>
+                                      ) : appointment.status === 'CANCELLED' ? (
+                                        <div className="rounded-xl border border-red-500/40 bg-red-500/15 p-4 text-center">
+                                          <XCircle className="mx-auto mb-2 h-8 w-8 text-red-400" />
+                                          <p className="font-semibold text-red-300">Agendamento Cancelado</p>
+                                        </div>
+                                        ) : (
+                                          <div className="space-y-3">
+                                            {paymentNotified && (
+                                              <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-center text-xs text-sky-200">
+                                                Aviso enviado! Aguarde o barbeiro confirmar o recebimento do PIX para liberar a vaga.
+                                              </div>
+                                            )}
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                              <button
+                                                disabled={updating}
+                                                onClick={() => handleAction({ status: 'CANCELLED' })}
+                                                className="rounded-xl border border-red-500/40 bg-red-600/20 px-4 py-3 text-xs font-semibold text-red-300 transition hover:bg-red-600/30 disabled:opacity-50"
+                                              >
+                                                Cancelar Horário
+                                              </button>
+
+                                              {appointment.requirePrepaymentToConfirm ? (
+                                                <button
+                                                  disabled={updating || paymentNotified}
+                                                  onClick={() => handleAction({ notifyPayment: true })}
+                                                  className="rounded-xl bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] px-4 py-3 text-xs font-bold text-[#15120b] transition hover:brightness-110 disabled:opacity-50"
+                                                >
+                                                  {paymentNotified ? 'Aviso Enviado' : 'Já Paguei o PIX'}
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  disabled={updating}
+                                                  onClick={() => handleAction({ status: 'CONFIRMED' })}
+                                                  className="rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                                                >
+                                                  Confirmar Presença
+                                                </button>
+                                              )}
+                                            </div>
+
+                                            <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+                                              <AlertTriangle size={12} className="text-[#f5b51b]" />
+                                              <span>Cancelamento permitido somente até {cancelHours}h antes do horário.</span>
+                                            </p>
+                                          </div>
         )}
-      </div>
-    </div>
-  )
+                                        </div>
+                                      </div>
+                                      )
 }
-

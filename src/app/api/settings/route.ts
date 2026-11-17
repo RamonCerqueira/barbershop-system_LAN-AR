@@ -2,6 +2,8 @@ import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthUser } from '@/lib/auth'
+import { apiError } from '@/lib/http'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +11,7 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
+    await requireCompanySubscriptionAccess(auth.companyId)
 
     const [company, settings] = await Promise.all([
       prisma.company.findUnique({ where: { id: auth.companyId } }),
@@ -51,6 +54,7 @@ export async function PUT(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
+    await requireCompanySubscriptionAccess(auth.companyId)
 
     const body = await request.json()
     const {
@@ -121,14 +125,13 @@ export async function PUT(request: NextRequest) {
       settings: { ...updated, whatsappConfig: { ...((updated.whatsappConfig as Record<string, unknown>) || {}), apiToken: undefined, apiUrl: undefined } }
     })
   } catch (error: any) {
-    console.error('Erro ao salvar configurações:', error)
-    if (error.code === 'P2002') {
+    if (error?.code === 'P2002') {
       return jsonResponse(
         { error: 'Este e-mail já está sendo utilizado por outra empresa' },
         { status: 409 }
       )
     }
-    return jsonResponse({ error: 'Erro ao salvar configurações' }, { status: 500 })
+    return apiError(error)
   }
 }
 

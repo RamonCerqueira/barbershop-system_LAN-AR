@@ -36,7 +36,9 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     })
 
-    const formatted = companies.map((company) => {
+    const formatted = companies
+      .filter((company) => (company.settings?.locationConfig as any)?.showOnMap !== false)
+      .map((company) => {
       const ratings = company.clients
         .map((c) => c.rating)
         .filter((r): r is number => typeof r === 'number')
@@ -68,10 +70,19 @@ export async function GET(request: NextRequest) {
       const bh = (company.settings?.businessHours as any) || {}
       const isOpenToday = bh[todayKey] ? bh[todayKey].isOpen !== false : true
 
+      const loc = (company.settings?.locationConfig as any) || {}
+
       return {
         id: company.id,
         name: company.name,
         address: company.address,
+        city: loc.city || '',
+        neighborhood: loc.neighborhood || '',
+        latitude: typeof loc.latitude === 'number' ? loc.latitude : null,
+        longitude: typeof loc.longitude === 'number' ? loc.longitude : null,
+        amenities: Array.isArray(loc.amenities) ? loc.amenities : [],
+        acceptedPayments: Array.isArray(loc.acceptedPayments) ? loc.acceptedPayments : [],
+        instagram: loc.instagram || '',
         phone: company.phone,
         email: company.email,
         rating: avgRating,

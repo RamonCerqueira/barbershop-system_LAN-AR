@@ -1,6 +1,7 @@
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { processAppointmentPaymentDeadlines } from '@/lib/appointment-auto-cancel'
 
 export async function GET(
   request: NextRequest,
@@ -34,6 +35,8 @@ export async function GET(
     if (!company) {
       return jsonResponse({ error: 'Barbearia não encontrada' }, { status: 404 })
     }
+
+    await processAppointmentPaymentDeadlines(company.id).catch(() => undefined)
 
     // Buscar agendamentos ocupados para a data selecionada (se informada)
     let bookedSlots: { time: string; employeeId: string; duration: number }[] = []
@@ -149,14 +152,22 @@ export async function GET(
         ? Number((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1))
         : 0
 
+    const loc = (company.settings?.locationConfig as any) || {}
+
     return jsonResponse({
       id: company.id,
       name: company.name,
       address: company.address,
+      city: loc.city || '',
+      neighborhood: loc.neighborhood || '',
+      reference: loc.reference || '',
+      latitude: typeof loc.latitude === 'number' ? loc.latitude : null,
+      longitude: typeof loc.longitude === 'number' ? loc.longitude : null,
+      instagram: loc.instagram || '',
       phone: company.phone,
       email: company.email,
       description:
-        (company.settings?.locationConfig as any)?.description ||
+        loc.description ||
         'Barbearia moderna com profissionais especializados e atendimento de excelência.',
       rating: avgRating,
       reviewCount: ratings.length,
@@ -169,7 +180,20 @@ export async function GET(
         saturday: bh.saturday?.isOpen === false ? 'Fechado' : `${bh.saturday?.openTime || '08:00'} - ${bh.saturday?.closeTime || '18:00'}`,
         sunday: bh.sunday?.isOpen ? `${bh.sunday?.openTime || '09:00'} - ${bh.sunday?.closeTime || '14:00'}` : 'Fechado'
       },
-      amenities: [],
+      amenities: Array.isArray(loc.amenities) ? loc.amenities : [],
+      acceptedPayments: Array.isArray(loc.acceptedPayments) ? loc.acceptedPayments : [],
+      bookingPolicy: {
+        cancellationDeadlineHours: Number(aptConfig.cancellationDeadline ?? 2),
+        requirePrepaymentToConfirm: Boolean(aptConfig.requirePrepaymentToConfirm),
+        paymentDeadlineHours: Number(aptConfig.paymentDeadlineHours ?? 2),
+        pix: aptConfig.pixKey
+          ? {
+              key: String(aptConfig.pixKey),
+              beneficiary: String(aptConfig.pixBeneficiary || company.fullName),
+              bank: String(aptConfig.pixBank || '')
+            }
+          : null
+      },
       services: company.services.map((s) => ({
         id: s.id,
         name: s.name,

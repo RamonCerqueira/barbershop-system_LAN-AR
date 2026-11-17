@@ -3,6 +3,7 @@ import { getAuthUser } from '@/lib/auth'
 import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
 import { runDailySubscriptionReminders } from '@/lib/subscription-reminders'
+import { processAppointmentPaymentDeadlines } from '@/lib/appointment-auto-cancel'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +21,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const summary = await runDailySubscriptionReminders()
-    return jsonResponse({ success: true, ...summary })
+    const [summary, appointmentDeadlines] = await Promise.all([
+      runDailySubscriptionReminders(),
+      processAppointmentPaymentDeadlines()
+    ])
+    return jsonResponse({ success: true, ...summary, appointmentDeadlines })
   } catch (error) {
     return apiError(error)
   }

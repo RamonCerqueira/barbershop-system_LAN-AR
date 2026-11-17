@@ -8,9 +8,19 @@ import {
   Clock,
   Bell,
   Globe,
-  CheckCircle
+  QrCode,
+  Copy
 } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
+import { formatCEP, formatPhone } from '@/lib/masks'
+import {
+  SaasAlert,
+  SaasField,
+  SaasPageHeader,
+  SaasSectionCard,
+  SaasSubmitButton,
+  saasInputClass
+} from '@/components/ui/SaasUI'
 
 interface BusinessHours {
   [key: string]: {
@@ -32,11 +42,22 @@ const daysOfWeek = [
   { key: 'sunday', label: 'Domingo' }
 ]
 
+const AMENITY_OPTIONS = [
+  'Wi-Fi Grátis',
+  'Ar-condicionado',
+  'Estacionamento',
+  'Café / Cerveja',
+  'Acessibilidade',
+  'Espaço Kids'
+]
+
+const PAYMENT_OPTIONS = ['PIX', 'Dinheiro', 'Cartão de Débito', 'Cartão de Crédito']
+
 export default function Configuracoes() {
   const [activeTab, setActiveTab] = useState('general')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [savedToast, setSavedToast] = useState(false)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const [generalSettings, setGeneralSettings] = useState({
     name: '',
@@ -57,11 +78,16 @@ export default function Configuracoes() {
   })
 
   const [locationSettings, setLocationSettings] = useState({
+    city: '',
+    neighborhood: '',
+    zipCode: '',
+    reference: '',
+    instagram: '',
     latitude: -23.5505,
     longitude: -46.6333,
-    googleMapsApiKey: '',
     showOnMap: true,
-    deliveryRadius: 5
+    amenities: [] as string[],
+    acceptedPayments: ['PIX', 'Dinheiro', 'Cartão de Débito', 'Cartão de Crédito'] as string[]
   })
 
   const [businessHours, setBusinessHours] = useState<BusinessHours>({
@@ -77,11 +103,15 @@ export default function Configuracoes() {
   const [appointmentSettings, setAppointmentSettings] = useState({
     slotDuration: 30,
     advanceBookingDays: 30,
+    minAdvanceMinutes: 30,
     cancellationDeadline: 2,
     autoConfirm: false,
     allowOnlinePayment: true,
-    requireDeposit: false,
-    depositPercentage: 20
+    requirePrepaymentToConfirm: false,
+    paymentDeadlineHours: 2,
+    pixKey: '',
+    pixBeneficiary: '',
+    pixBank: ''
   })
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -126,300 +156,228 @@ export default function Configuracoes() {
   }, [])
 
   useEffect(() => {
-    loadSettings()
+    void loadSettings()
   }, [loadSettings])
 
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const res = await apiFetch('/api/settings', {
-        method: 'PUT',
-        body: JSON.stringify({
-          general: generalSettings,
-          businessHours,
-          appointmentConfig: appointmentSettings,
-          whatsappConfig: whatsappSettings,
-          locationConfig: locationSettings,
-          notificationConfig: notificationSettings
+    const handleSave = async (e?: React.FormEvent) => {
+      if (e) e.preventDefault()
+      if (saving) return
+      setSaving(true)
+      setFeedback(null)
+      try {
+        const res = await apiFetch('/api/settings', {
+          method: 'PUT',
+          body: JSON.stringify({
+            general: generalSettings,
+            businessHours,
+            appointmentConfig: appointmentSettings,
+            whatsappConfig: whatsappSettings,
+            locationConfig: locationSettings,
+            notificationConfig: notificationSettings
+          })
         })
-      })
 
-      if (res.ok) {
-        setSavedToast(true)
-        setTimeout(() => setSavedToast(false), 3000)
-      } else {
-        alert('Erro ao salvar configurações')
+        const body = await res.json().catch(() => ({}))
+        if (res.ok) {
+          setFeedback({ type: 'success', text: body.message || 'Configurações salvas com sucesso!' })
+        } else {
+          setFeedback({ type: 'error', text: body.error || 'Erro ao salvar configurações.' })
+        }
+      } catch (error) {
+        console.error('Erro ao salvar configurações:', error)
+        setFeedback({ type: 'error', text: 'Erro de conexão ao salvar configurações.' })
+      } finally {
+        setSaving(false)
       }
-    } catch (error) {
-      console.error('Erro ao salvar configurações:', error)
-    } finally {
-      setSaving(false)
     }
+
+    const copyMondayToWeekdays = () => {
+      const mon = businessHours.monday
+      setBusinessHours((prev) => ({
+        ...prev,
+        tuesday: { ...mon },
+        wednesday: { ...mon },
+        thursday: { ...mon },
+        friday: { ...mon }
+      }))
+      setFeedback({ type: 'success', text: 'Horário de segunda-feira aplicado de terça a sexta-feira.' })
+    }
+
+    const toggleArrayItem = (field: 'amenities' | 'acceptedPayments', value: string) => {
+      setLocationSettings((prev) => {
+        const current = prev[field]
+        const next = current.includes(value)
+          ? current.filter((v) => v !== value)
+          : [...current, value]
+        return { ...prev, [field]: next }
+      })
+    }
+
+    const tabs = [
+      { id: 'general', label: 'Geral', icon: Globe },
+      { id: 'hours', label: 'Horários & Pausa', icon: Clock },
+      { id: 'location', label: 'Busca Local & Vitrine', icon: MapPin },
+      { id: 'appointments', label: 'Agendamentos & PIX', icon: QrCode },
+      { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
+      { id: 'notifications', label: 'Notificações', icon: Bell }
+    ]
+
+    if (loading) {
+      return (
+          <div className="space-y-4">
+            <div className="h-20 animate-pulse rounded-2xl bg-white/5" />
+            <div className="h-96 animate-pulse rounded-2xl bg-white/5" />
+          </div>
+          )
   }
 
-  const tabs = [
-    { id: 'general', label: 'Geral', icon: Globe },
-    { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-    { id: 'location', label: 'Localização', icon: MapPin },
-    { id: 'hours', label: 'Horários', icon: Clock },
-    { id: 'appointments', label: 'Agendamentos', icon: Clock },
-    { id: 'notifications', label: 'Notificações', icon: Bell }
-  ]
-
-  if (loading) {
-    return (
-      <div className="py-12 text-center text-gray-400">
-        Carregando configurações do banco...
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Configurações da Barbearia</h1>
-          <p className="text-sm text-gray-400">
-            Todas as preferências são salvas diretamente no PostgreSQL
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {savedToast && (
-            <span className="inline-flex items-center text-sm text-green-400">
-              <CheckCircle size={16} className="mr-1" /> Salvo com sucesso!
-            </span>
-          )}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center px-5 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium transition-colors"
-          >
-            <Save size={18} className="mr-2" />
-            {saving ? 'Salvando...' : 'Salvar Configurações'}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
-        {/* Tabs Navigation */}
-        <div className="border-b border-gray-700 overflow-x-auto">
-          <nav className="flex space-x-6 px-6">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
-                      ? 'border-orange-500 text-orange-400'
-                      : 'border-transparent text-gray-400 hover:text-white'
-                    }`}
-                >
-                  <Icon size={18} className="mr-2" />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </nav>
-        </div>
-
-        <div className="p-6">
-          {activeTab === 'general' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">
-                    Nome da Barbearia
-                  </label>
-                  <input
-                    type="text"
-                    value={generalSettings.name}
-                    onChange={(e) =>
-                      setGeneralSettings({ ...generalSettings, name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Telefone</label>
-                  <input
-                    type="tel"
-                    value={generalSettings.phone}
-                    onChange={(e) =>
-                      setGeneralSettings({ ...generalSettings, phone: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={generalSettings.email}
-                    onChange={(e) =>
-                      setGeneralSettings({ ...generalSettings, email: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">Website</label>
-                  <input
-                    type="url"
-                    value={generalSettings.website}
-                    onChange={(e) =>
-                      setGeneralSettings({ ...generalSettings, website: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  Endereço Completo
-                </label>
-                <input
-                  type="text"
-                  value={generalSettings.address}
-                  onChange={(e) =>
-                    setGeneralSettings({ ...generalSettings, address: e.target.value })
+          return (
+              <form onSubmit={handleSave} className="space-y-6">
+                <SaasPageHeader
+                  kicker="Personalização da Barbearia"
+                  title="Configurações Operacionais e Vitrine"
+                  subtitle="Defina horários de atendimento, busca local, regras de cancelamento (2h) e recebimento via PIX."
+                  actions={
+                    <SaasSubmitButton loading={saving} loadingText="Salvando...">
+                      <Save size={16} />
+                      <span>Salvar Configurações</span>
+                    </SaasSubmitButton>
                   }
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
                 />
+
+            {feedback && <SaasAlert variant={feedback.type} message={feedback.text} />}
+
+              <SaasSectionCard className="p-0 overflow-hidden">
+                {/* Tabs Navigation */}
+                    <div className="overflow-x-auto border-b border-white/10">
+                      <nav className="flex space-x-2 px-4 sm:px-6" aria-label="Abas de configuração">
+                        {tabs.map((tab) => {
+                          const Icon = tab.icon
+                          const active = activeTab === tab.id
+                          return (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setActiveTab(tab.id)}
+                              className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-4 text-xs font-semibold transition sm:text-sm ${active
+                                  ? 'border-[#f5b51b] text-[#f5b51b]'
+                                  : 'border-transparent text-slate-400 hover:text-white'
+                                }`}
+                            >
+                              <Icon size={16} />
+                              <span>{tab.label}</span>
+                            </button>
+                          )
+                        })}
+                      </nav>
+                    </div>
+
+                    <div className="p-6">
+                      {/* ABA 1: GERAL */}
+                      {activeTab === 'general' && (
+                              <div className="space-y-5">
+                                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                  <SaasField label="Nome da Barbearia" required htmlFor="cfg-name">
+                                    <input
+                                      id="cfg-name"
+                                      type="text"
+                                      required
+                                      value={generalSettings.name}
+                                      onChange={(e) => setGeneralSettings({ ...generalSettings, name: e.target.value })}
+                                      className={saasInputClass}
+                                    />
+                                </SaasField>
+
+                                <SaasField label="Telefone / WhatsApp Público" required htmlFor="cfg-phone">
+                                  <input
+                                    id="cfg-phone"
+                                    type="tel"
+                                    required
+                                    maxLength={15}
+                                    value={generalSettings.phone}
+                                    onChange={(e) =>
+                      setGeneralSettings({...generalSettings, phone: formatPhone(e.target.value) })
+                    }
+                                  className={saasInputClass}
+                                  placeholder="(11) 99999-9999"
+                  />
+                              </SaasField>
+
+                              <SaasField label="E-mail da Barbearia" required htmlFor="cfg-email">
+                                <input
+                                  id="cfg-email"
+                                  type="email"
+                                  required
+                                  value={generalSettings.email}
+                                  onChange={(e) => setGeneralSettings({ ...generalSettings, email: e.target.value })}
+                                  className={saasInputClass}
+                                />
+                            </SaasField>
+
+                            <SaasField label="Website" htmlFor="cfg-site">
+                              <input
+                                id="cfg-site"
+                                type="url"
+                                value={generalSettings.website}
+                                onChange={(e) => setGeneralSettings({ ...generalSettings, website: e.target.value })}
+                                className={saasInputClass}
+                                placeholder="https://suabarbearia.com.br"
+                              />
+                        </SaasField>
               </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Descrição</label>
-                <textarea
-                  rows={3}
-                  value={generalSettings.description}
-                  onChange={(e) =>
-                    setGeneralSettings({
-                      ...generalSettings,
-                      description: e.target.value
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                />
-              </div>
-            </div>
+
+                      <SaasField label="Endereço Completo" required htmlFor="cfg-address">
+                        <input
+                          id="cfg-address"
+                          type="text"
+                          required
+                          value={generalSettings.address}
+                          onChange={(e) => setGeneralSettings({ ...generalSettings, address: e.target.value })}
+                          className={saasInputClass}
+                        />
+                    </SaasField>
+
+                    <SaasField label="Descrição na Vitrine Pública" htmlFor="cfg-desc">
+                      <textarea
+                        id="cfg-desc"
+                        rows={3}
+                        value={generalSettings.description}
+                        onChange={(e) => setGeneralSettings({ ...generalSettings, description: e.target.value })}
+                        className={saasInputClass}
+                      />
+                  </SaasField>
+                </div>
           )}
 
-          {activeTab === 'whatsapp' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">URL da API</label>
-                  <input
-                    type="url"
-                    value={whatsappSettings.apiUrl}
-                    onChange={(e) =>
-                      setWhatsappSettings({ ...whatsappSettings, apiUrl: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">
-                    Token de Acesso
-                  </label>
-                  <input
-                    type="password"
-                    value={whatsappSettings.apiToken}
-                    onChange={(e) =>
-                      setWhatsappSettings({
-                        ...whatsappSettings,
-                        apiToken: e.target.value
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">
-                    Número do WhatsApp (com DDI 55)
-                  </label>
-                  <input
-                    type="text"
-                    value={whatsappSettings.phoneNumber}
-                    onChange={(e) =>
-                      setWhatsappSettings({
-                        ...whatsappSettings,
-                        phoneNumber: e.target.value
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">
-                    Antecedência do Lembrete (horas)
-                  </label>
-                  <input
-                    type="number"
-                    value={whatsappSettings.reminderHours}
-                    onChange={(e) =>
-                      setWhatsappSettings({
-                        ...whatsappSettings,
-                        reminderHours: parseInt(e.target.value, 10) || 24
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+                      {/* ABA 2: HORÁRIOS & PAUSA */}
+                      {activeTab === 'hours' && (
+                        <div className="space-y-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#0d1117] p-3.5 text-xs text-slate-300">
+                            <span>Configure os dias abertos, abertura, fechamento e horário de almoço/pausa (fuso de Brasília).</span>
+                            <button
+                              type="button"
+                              onClick={copyMondayToWeekdays}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5b51b]/15 px-3 py-1.5 font-semibold text-[#f5b51b] hover:bg-[#f5b51b]/25"
+                            >
+                              <Copy size={13} />
+                              <span>Aplicar Segunda para Ter–Sex</span>
+                            </button>
+                          </div>
 
-          {activeTab === 'location' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Latitude</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={locationSettings.latitude}
-                  onChange={(e) =>
-                    setLocationSettings({
-                      ...locationSettings,
-                      latitude: parseFloat(e.target.value) || 0
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Longitude</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={locationSettings.longitude}
-                  onChange={(e) =>
-                    setLocationSettings({
-                      ...locationSettings,
-                      longitude: parseFloat(e.target.value) || 0
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                />
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'hours' && (
-            <div className="space-y-4">
               {daysOfWeek.map(({ key, label }) => {
                 const day = businessHours[key] || {
                   isOpen: true,
                   openTime: '09:00',
-                  closeTime: '19:00'
+                  closeTime: '19:00',
+                  breakStart: '',
+                  breakEnd: ''
                 }
                 return (
                   <div
                     key={key}
-                    className="flex flex-wrap items-center justify-between p-4 bg-gray-900 border border-gray-700 rounded-lg gap-4"
+                    className="flex flex-col justify-between gap-4 rounded-xl border border-white/10 bg-[#0d1117] p-4 lg:flex-row lg:items-center"
                   >
-                    <label className="flex items-center space-x-3 min-w-[160px]">
+                    <label className="flex min-w-[160px] cursor-pointer items-center gap-3">
                       <input
                         type="checkbox"
                         checked={day.isOpen}
@@ -429,38 +387,69 @@ export default function Configuracoes() {
                             [key]: { ...day, isOpen: e.target.checked }
                           })
                         }
-                        className="h-4 w-4 text-orange-500 rounded"
+                        className="h-4 w-4 accent-[#f5b51b]"
                       />
-                      <span className="text-sm font-medium text-white">{label}</span>
+                      <span className="text-sm font-semibold text-white">{label}</span>
                     </label>
+
                     {day.isOpen ? (
-                      <div className="flex items-center space-x-3 text-sm">
-                        <input
-                          type="time"
-                          value={day.openTime}
-                          onChange={(e) =>
-                            setBusinessHours({
-                              ...businessHours,
-                              [key]: { ...day, openTime: e.target.value }
-                            })
-                          }
-                          className="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white"
-                        />
-                        <span className="text-gray-400">até</span>
-                        <input
-                          type="time"
-                          value={day.closeTime}
-                          onChange={(e) =>
-                            setBusinessHours({
-                              ...businessHours,
-                              [key]: { ...day, closeTime: e.target.value }
-                            })
-                          }
-                          className="px-2 py-1 bg-gray-800 border border-gray-700 rounded text-white"
-                        />
+                      <div className="flex flex-wrap items-center gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400">Expediente:</span>
+                          <input
+                            type="time"
+                            value={day.openTime}
+                            onChange={(e) =>
+                              setBusinessHours({
+                                ...businessHours,
+                                [key]: { ...day, openTime: e.target.value }
+                              })
+                            }
+                            className="rounded-lg border border-white/10 bg-[#141920] px-2.5 py-1.5 text-white"
+                          />
+                          <span className="text-slate-400">até</span>
+                          <input
+                            type="time"
+                            value={day.closeTime}
+                            onChange={(e) =>
+                              setBusinessHours({
+                                ...businessHours,
+                                [key]: { ...day, closeTime: e.target.value }
+                              })
+                            }
+                            className="rounded-lg border border-white/10 bg-[#141920] px-2.5 py-1.5 text-white"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 border-l border-white/10 pl-3">
+                          <span className="text-slate-400">Intervalo/Almoço:</span>
+                          <input
+                            type="time"
+                            value={day.breakStart || ''}
+                            onChange={(e) =>
+                              setBusinessHours({
+                                ...businessHours,
+                                [key]: { ...day, breakStart: e.target.value }
+                              })
+                            }
+                            className="rounded-lg border border-white/10 bg-[#141920] px-2.5 py-1.5 text-white"
+                          />
+                          <span className="text-slate-400">até</span>
+                          <input
+                            type="time"
+                            value={day.breakEnd || ''}
+                            onChange={(e) =>
+                              setBusinessHours({
+                                ...businessHours,
+                                [key]: { ...day, breakEnd: e.target.value }
+                              })
+                            }
+                            className="rounded-lg border border-white/10 bg-[#141920] px-2.5 py-1.5 text-white"
+                          />
+                        </div>
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-500">Fechado</span>
+                      <span className="text-xs font-semibold text-slate-500">Fechado neste dia</span>
                     )}
                   </div>
                 )
@@ -468,14 +457,173 @@ export default function Configuracoes() {
             </div>
           )}
 
+          {/* ABA 3: BUSCA LOCAL & VITRINE */}
+          {activeTab === 'location' && (
+            <div className="space-y-6">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#f5b51b]/25 bg-[#f5b51b]/10 p-4">
+                <input
+                  type="checkbox"
+                  checked={locationSettings.showOnMap}
+                  onChange={(e) =>
+                    setLocationSettings({ ...locationSettings, showOnMap: e.target.checked })
+                  }
+                  className="h-4 w-4 accent-[#f5b51b]"
+                />
+                <div className="text-sm">
+                  <p className="font-semibold text-white">Exibir barbearia na busca pública (/cliente)</p>
+                  <p className="text-xs text-slate-300">
+                    Permite que clientes da sua região encontrem sua barbearia pela cidade, bairro ou serviços.
+                  </p>
+                </div>
+              </label>
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                <SaasField label="Cidade" htmlFor="loc-city">
+                  <input
+                    id="loc-city"
+                    type="text"
+                    value={locationSettings.city}
+                    onChange={(e) => setLocationSettings({ ...locationSettings, city: e.target.value })}
+                    className={saasInputClass}
+                    placeholder="Ex: São Paulo"
+                  />
+                </SaasField>
+
+                <SaasField label="Bairro" htmlFor="loc-neighborhood">
+                  <input
+                    id="loc-neighborhood"
+                    type="text"
+                    value={locationSettings.neighborhood}
+                    onChange={(e) =>
+                      setLocationSettings({ ...locationSettings, neighborhood: e.target.value })
+                    }
+                    className={saasInputClass}
+                    placeholder="Ex: Centro"
+                  />
+                </SaasField>
+
+                <SaasField label="CEP" htmlFor="loc-zip">
+                  <input
+                    id="loc-zip"
+                    type="text"
+                    maxLength={9}
+                    value={locationSettings.zipCode}
+                    onChange={(e) =>
+                      setLocationSettings({ ...locationSettings, zipCode: formatCEP(e.target.value) })
+                    }
+                    className={saasInputClass}
+                    placeholder="00000-000"
+                  />
+                </SaasField>
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <SaasField label="Ponto de Referência" htmlFor="loc-ref">
+                  <input
+                    id="loc-ref"
+                    type="text"
+                    value={locationSettings.reference}
+                    onChange={(e) => setLocationSettings({ ...locationSettings, reference: e.target.value })}
+                    className={saasInputClass}
+                    placeholder="Ex: Próximo à praça central"
+                  />
+                </SaasField>
+
+                <SaasField label="Instagram (@)" htmlFor="loc-ig">
+                  <input
+                    id="loc-ig"
+                    type="text"
+                    value={locationSettings.instagram}
+                    onChange={(e) => setLocationSettings({ ...locationSettings, instagram: e.target.value })}
+                    className={saasInputClass}
+                    placeholder="@suabarbearia"
+                  />
+                </SaasField>
+
+                <SaasField label="Latitude" htmlFor="loc-lat">
+                  <input
+                    id="loc-lat"
+                    type="number"
+                    step="any"
+                    value={locationSettings.latitude}
+                    onChange={(e) =>
+                      setLocationSettings({
+                        ...locationSettings,
+                        latitude: parseFloat(e.target.value) || 0
+                      })
+                    }
+                    className={saasInputClass}
+                  />
+                </SaasField>
+
+                <SaasField label="Longitude" htmlFor="loc-lng">
+                  <input
+                    id="loc-lng"
+                    type="number"
+                    step="any"
+                    value={locationSettings.longitude}
+                    onChange={(e) =>
+                      setLocationSettings({
+                        ...locationSettings,
+                        longitude: parseFloat(e.target.value) || 0
+                      })
+                    }
+                    className={saasInputClass}
+                  />
+                </SaasField>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold uppercase text-slate-300">Comodidades da Barbearia</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {AMENITY_OPTIONS.map((item) => (
+                      <label
+                        key={item}
+                        className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-[#0d1117] px-3 py-2 text-xs text-slate-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={locationSettings.amenities.includes(item)}
+                          onChange={() => toggleArrayItem('amenities', item)}
+                          className="h-4 w-4 accent-[#f5b51b]"
+                        />
+                        <span>{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold uppercase text-slate-300">Pagamentos Aceitos no Local</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PAYMENT_OPTIONS.map((item) => (
+                      <label
+                        key={item}
+                        className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-[#0d1117] px-3 py-2 text-xs text-slate-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={locationSettings.acceptedPayments.includes(item)}
+                          onChange={() => toggleArrayItem('acceptedPayments', item)}
+                          className="h-4 w-4 accent-[#f5b51b]"
+                        />
+                        <span>{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ABA 4: AGENDAMENTOS & PIX DA BARBEARIA */}
           {activeTab === 'appointments' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">
-                    Intervalo Padrão de Horários (minutos)
-                  </label>
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-4">
+                <SaasField label="Intervalo da Grade (min)" htmlFor="apt-slot">
                   <input
+                    id="apt-slot"
                     type="number"
                     min="10"
                     step="5"
@@ -486,14 +634,13 @@ export default function Configuracoes() {
                         slotDuration: parseInt(e.target.value, 10) || 30
                       })
                     }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+                    className={saasInputClass}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">
-                    Máximo de Dias para Agendamento Futuro
-                  </label>
+                </SaasField>
+
+                <SaasField label="Máx. Dias Futuros" htmlFor="apt-adv">
                   <input
+                    id="apt-adv"
                     type="number"
                     min="1"
                     value={appointmentSettings.advanceBookingDays}
@@ -503,100 +650,235 @@ export default function Configuracoes() {
                         advanceBookingDays: parseInt(e.target.value, 10) || 30
                       })
                     }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+                    className={saasInputClass}
                   />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-300 mb-1">
-                    Prazo Limite para Cancelamento (horas)
-                  </label>
+                </SaasField>
+
+                <SaasField label="Antecedência Mín. (min)" htmlFor="apt-min">
                   <input
+                    id="apt-min"
                     type="number"
                     min="0"
+                    step="15"
+                    value={appointmentSettings.minAdvanceMinutes}
+                    onChange={(e) =>
+                      setAppointmentSettings({
+                        ...appointmentSettings,
+                        minAdvanceMinutes: parseInt(e.target.value, 10) || 0
+                      })
+                    }
+                    className={saasInputClass}
+                  />
+                </SaasField>
+
+                <SaasField
+                  label="Prazo Cancelamento (h)"
+                  htmlFor="apt-cancel"
+                  hint="Padrão recomendado: 2h antes."
+                >
+                  <input
+                    id="apt-cancel"
+                    type="number"
+                    min="2"
                     value={appointmentSettings.cancellationDeadline}
                     onChange={(e) =>
                       setAppointmentSettings({
                         ...appointmentSettings,
-                        cancellationDeadline: parseInt(e.target.value, 10) || 2
+                        cancellationDeadline: Math.max(2, parseInt(e.target.value, 10) || 2)
                       })
                     }
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
+                    className={saasInputClass}
                   />
-                </div>
+                </SaasField>
               </div>
 
-              <div className="space-y-3 pt-2">
-                <label className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={appointmentSettings.autoConfirm}
-                    onChange={(e) =>
-                      setAppointmentSettings({
-                        ...appointmentSettings,
-                        autoConfirm: e.target.checked
-                      })
-                    }
-                    className="h-4 w-4 text-orange-500 rounded"
-                  />
-                  <span className="text-sm text-gray-300">
-                    Confirmar agendamentos automaticamente ao receber reserva online
-                  </span>
-                </label>
+                      {/* Regra de PIX até 2h antes para confirmar a vaga */}
+                      <div className="space-y-4 rounded-2xl border border-[#f5b51b]/30 bg-[#0d1117] p-5">
+                        <label className="flex cursor-pointer items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={appointmentSettings.requirePrepaymentToConfirm}
+                            onChange={(e) =>
+                              setAppointmentSettings({
+                                ...appointmentSettings,
+                        requirePrepaymentToConfirm: e.target.checked,
+                                autoConfirm: e.target.checked ? false : appointmentSettings.autoConfirm
+                              })
+                            }
+                            className="mt-1 h-4 w-4 accent-[#f5b51b]"
+                          />
+                          <div className="text-sm">
+                            <p className="font-bold text-white">
+                              Exigir pagamento PIX até {appointmentSettings.paymentDeadlineHours}h antes para confirmar a vaga
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-300">
+                              O cliente recebe sua chave PIX para pagar e avisar. Você confirma manualmente no painel de Agendamentos. Se não for confirmado até 2h antes, a vaga é cancelada automaticamente.
+                            </p>
+                          </div>
+                        </label>
 
-                <label className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={appointmentSettings.allowOnlinePayment}
-                    onChange={(e) =>
-                      setAppointmentSettings({
-                        ...appointmentSettings,
-                        allowOnlinePayment: e.target.checked
-                      })
-                    }
-                    className="h-4 w-4 text-orange-500 rounded"
-                  />
-                  <span className="text-sm text-gray-300">
-                    Permitir pagamento antecipado via PIX
-                  </span>
-                </label>
-              </div>
-            </div>
-          )}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                          <SaasField label="Chave PIX da Barbearia" htmlFor="pix-key">
+                            <input
+                              id="pix-key"
+                              type="text"
+                              value={appointmentSettings.pixKey}
+                              onChange={(e) =>
+                                setAppointmentSettings({ ...appointmentSettings, pixKey: e.target.value })
+                              }
+                              className={saasInputClass}
+                              placeholder="CPF, CNPJ, E-mail ou Aleatória"
+                            />
+                          </SaasField>
 
-          {activeTab === 'notifications' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(
-                [
-                  { key: 'notifyNewAppointments', label: 'Notificar novos agendamentos' },
-                  { key: 'notifyCancellations', label: 'Notificar cancelamentos' },
-                  { key: 'notifyPayments', label: 'Notificar pagamentos e PIX recebidos' },
-                  { key: 'notifyLowStock', label: 'Notificar alerta de estoque baixo' },
-                  { key: 'whatsappNotifications', label: 'Alertas via WhatsApp' },
-                  { key: 'emailNotifications', label: 'Alertas via E-mail' }
-                ] as const
-              ).map((item) => (
-                <label
-                  key={item.key}
-                  className="flex items-center space-x-3 p-4 bg-gray-900 border border-gray-700 rounded-lg"
-                >
-                  <input
-                    type="checkbox"
-                    checked={Boolean(notificationSettings[item.key])}
-                    onChange={(e) =>
-                      setNotificationSettings({
-                        ...notificationSettings,
-                        [item.key]: e.target.checked
-                      })
-                    }
-                    className="h-4 w-4 text-orange-500 rounded"
-                  />
-                  <span className="text-sm text-white">{item.label}</span>
-                </label>
-              ))}
-            </div>
+                          <SaasField label="Beneficiário PIX" htmlFor="pix-ben">
+                            <input
+                              id="pix-ben"
+                              type="text"
+                              value={appointmentSettings.pixBeneficiary}
+                              onChange={(e) =>
+                                setAppointmentSettings({
+                                  ...appointmentSettings,
+                                  pixBeneficiary: e.target.value
+                                })
+                              }
+                              className={saasInputClass}
+                              placeholder="Nome do titular da conta"
+                            />
+                          </SaasField>
+
+                          <SaasField label="Banco / Instituição" htmlFor="pix-bank">
+                            <input
+                              id="pix-bank"
+                              type="text"
+                              value={appointmentSettings.pixBank}
+                              onChange={(e) =>
+                                setAppointmentSettings({ ...appointmentSettings, pixBank: e.target.value })
+                              }
+                              className={saasInputClass}
+                              placeholder="Ex: Nubank, Caixa, Itaú"
+                            />
+                          </SaasField>
+
+                          <SaasField label="Prazo Pagamento (horas antes)" htmlFor="pix-deadline">
+                            <input
+                              id="pix-deadline"
+                              type="number"
+                              min="1"
+                              value={appointmentSettings.paymentDeadlineHours}
+                              onChange={(e) =>
+                                setAppointmentSettings({
+                                  ...appointmentSettings,
+                                  paymentDeadlineHours: Math.max(1, parseInt(e.target.value, 10) || 2)
+                                })
+                              }
+                              className={saasInputClass}
+                            />
+                          </SaasField>
+                        </div>
+                      </div>
+
+                      <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-300">
+                        <input
+                          type="checkbox"
+                          disabled={appointmentSettings.requirePrepaymentToConfirm}
+                          checked={appointmentSettings.autoConfirm && !appointmentSettings.requirePrepaymentToConfirm}
+                          onChange={(e) =>
+                            setAppointmentSettings({ ...appointmentSettings, autoConfirm: e.target.checked })
+                          }
+                          className="h-4 w-4 accent-[#f5b51b]"
+                        />
+                        <span>
+                          Confirmar agendamentos automaticamente ao receber reserva online (desativado quando exige PIX antecipado)
+                        </span>
+                      </label>
+                  </div>
+                )}
+
+                {/* ABA 5: WHATSAPP */}
+                {activeTab === 'whatsapp' && (
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <SaasField label="URL da API" htmlFor="wa-url">
+                      <input
+                        id="wa-url"
+                        type="url"
+                        value={whatsappSettings.apiUrl}
+                        onChange={(e) => setWhatsappSettings({ ...whatsappSettings, apiUrl: e.target.value })}
+                        className={saasInputClass}
+                      />
+                    </SaasField>
+                    <SaasField label="Token de Acesso" htmlFor="wa-token">
+                      <input
+                        id="wa-token"
+                        type="password"
+                        value={whatsappSettings.apiToken}
+                        onChange={(e) => setWhatsappSettings({ ...whatsappSettings, apiToken: e.target.value })}
+                        className={saasInputClass}
+                      />
+                    </SaasField>
+                    <SaasField label="Número do WhatsApp (com DDI 55)" htmlFor="wa-num">
+                      <input
+                        id="wa-num"
+                        type="text"
+                        value={whatsappSettings.phoneNumber}
+                        onChange={(e) =>
+                          setWhatsappSettings({ ...whatsappSettings, phoneNumber: e.target.value })
+                        }
+                        className={saasInputClass}
+                      />
+                    </SaasField>
+                    <SaasField label="Antecedência do Lembrete (horas)" htmlFor="wa-hours">
+                      <input
+                        id="wa-hours"
+                        type="number"
+                        value={whatsappSettings.reminderHours}
+                        onChange={(e) =>
+                          setWhatsappSettings({
+                            ...whatsappSettings,
+                            reminderHours: parseInt(e.target.value, 10) || 24
+                          })
+                        }
+                        className={saasInputClass}
+                      />
+                    </SaasField>
+                  </div>
+                )}
+
+                {/* ABA 6: NOTIFICAÇÕES */}
+                {activeTab === 'notifications' && (
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {(
+                        [
+                          { key: 'notifyNewAppointments', label: 'Notificar novos agendamentos' },
+                          { key: 'notifyCancellations', label: 'Notificar cancelamentos e liberações de vaga' },
+                          { key: 'notifyPayments', label: 'Notificar avisos de pagamento PIX recebidos' },
+                          { key: 'notifyLowStock', label: 'Notificar alerta de estoque baixo' },
+                          { key: 'whatsappNotifications', label: 'Alertas via WhatsApp' },
+                          { key: 'emailNotifications', label: 'Alertas via E-mail' }
+                        ] as const
+                      ).map((item) => (
+                        <label
+                          key={item.key}
+                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-[#0d1117] p-4"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(notificationSettings[item.key])}
+                            onChange={(e) =>
+                              setNotificationSettings({
+                                ...notificationSettings,
+                                [item.key]: e.target.checked
+                              })
+                            }
+                            className="h-4 w-4 accent-[#f5b51b]"
+                          />
+                          <span className="text-sm text-white">{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
           )}
-        </div>
-      </div>
-    </div>
+                  </div>
+        </SaasSectionCard>
+    </form >
   )
 }
