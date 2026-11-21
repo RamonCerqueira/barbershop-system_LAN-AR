@@ -1,3 +1,4 @@
+import { isAvailablePlan } from '@/lib/plans'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import crypto from 'node:crypto'
@@ -71,8 +72,8 @@ export async function POST(request: NextRequest) {
       payerNote = String(body.payerNote || '')
     }
 
-    if (!['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(planRaw)) {
-      throw new HttpError(400, 'Plano inválido. Escolha Mensal, Trimestral ou Anual.')
+    if (!isAvailablePlan(planRaw)) {
+      throw new HttpError(400, 'Plano inválido. Escolha um plano mensal, semestral ou anual.')
     }
 
     if (payerNote.length > 500) {

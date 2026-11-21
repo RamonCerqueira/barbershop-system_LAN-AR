@@ -47,3 +47,7 @@ next-env.d.ts
 /private-uploads/
 
 /.cache/
+
+/storage/company-logos/
+
+/storage/profile-avatars/

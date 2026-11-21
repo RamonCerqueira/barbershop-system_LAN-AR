@@ -95,7 +95,7 @@ async function main() {
       payerNote: 'PIX teste'
     });
     assert.equal(pendingPay.status, 'PENDING');
-    assert.equal(Number(pendingPay.amount), 10);
+    assert.equal(Number(pendingPay.amount), 19);
     await assert.rejects(
       sub.requireCompanySubscriptionAccess(companyA.id),
       (e) => e.status === 402
@@ -150,8 +150,8 @@ async function main() {
   await check('7. SUPERADMIN approval activates subscription and unlocks access', async () => {
     const newPay = await sub.submitPixPayment({
       companyId: companyA.id,
-      plan: 'QUARTERLY',
-      payerNote: 'Novo PIX trimestral'
+      plan: 'SEMIANNUAL',
+      payerNote: 'Novo PIX semestral'
     });
     const approved = await sub.reviewSubscriptionPayment({
       paymentId: newPay.id,
@@ -163,7 +163,63 @@ async function main() {
     assert.equal(approved.company.subscriptionStatus, 'ACTIVE');
     const evalAccess = await sub.requireCompanySubscriptionAccess(companyA.id);
     assert.equal(evalAccess.hasAccess, true);
-    assert.ok(evalAccess.daysRemaining >= 89 && evalAccess.daysRemaining <= 90);
+    assert.ok(evalAccess.daysRemaining >= 180 && evalAccess.daysRemaining <= 184);
+  });
+
+  await check('Upgrade quote matches PIX amount, approval and renewal', async () => {
+    const status = await sub.getCompanySubscriptionStatus(companyA.id);
+    const offer = status.plans.find(p => p.code === 'PRO_ANNUAL');
+    assert.equal(offer.price, 378);
+    assert.equal(offer.discountPercent, 10);
+    const payment = await sub.submitPixPayment({ companyId: companyA.id, plan: 'PRO_ANNUAL' });
+    assert.equal(Number(payment.amount), 378);
+    const approved = await sub.reviewSubscriptionPayment({ paymentId: payment.id, action: 'APPROVE', reviewerId: owner.id, reviewerName: owner.name });
+    assert.equal(Number(approved.payment.amount), 378);
+    assert.equal(Number(approved.company.planPrice), 420);
+    const renewal = await sub.getCompanySubscriptionStatus(companyA.id);
+    assert.equal(renewal.plans.find(p => p.code === 'PRO_ANNUAL').price, 420);
+  });
+
+  await check('Company logo upload, retrieval, replacement and removal stay isolated', async () => {
+    const route = require('../src/app/api/settings/logo/route.ts');
+    const brand = require('../src/app/api/settings/branding/route.ts');
+    const { logoFilePath } = require('../src/lib/company-logo.ts');
+    const token = await auth.generateToken({ id: userA.id, email: userA.email, name: userA.name, role: 'ADMIN', companyId: companyA.id, type: 'COMPANY_USER' });
+    const headers = { cookie: 'barberpro_token=' + token };
+    const url = 'http://localhost/api/settings/logo';
+    assert.equal((await route.GET(new NextRequest(url))).status, 401);
+    const invalid = new FormData();
+    invalid.append('logo', new File(['<svg/>'], 'logo.png', { type: 'image/png' }));
+    assert.equal((await route.POST(new NextRequest(url, { method: 'POST', headers, body: invalid }))).status, 400);
+    const oversized = new FormData();
+    oversized.append('logo', new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'logo.png', { type: 'image/png' }));
+    assert.equal((await route.POST(new NextRequest(url, { method: 'POST', headers, body: oversized }))).status, 400);
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+    let prior;
+    for (let i = 0; i < 2; i++) {
+      const form = new FormData();
+      form.append('logo', new File([png], '../../logo.png', { type: 'image/png' }));
+      const uploaded = await route.POST(new NextRequest(url, { method: 'POST', headers, body: form }));
+      assert.equal(uploaded.status, 200);
+      const body = await uploaded.json();
+      assert.match(body.logoUrl, /^\/api\/settings\/logo\?v=[a-f0-9]{32}\.png$/);
+      const filename = (await db.company.findUnique({ where: { id: companyA.id } })).logoPath;
+      assert.ok(fs.existsSync(logoFilePath(filename)));
+      if (prior) assert.equal(fs.existsSync(logoFilePath(prior)), false);
+      prior = filename;
+      const image = await route.GET(new NextRequest(url, { headers }));
+      assert.equal(image.headers.get('content-type'), 'image/png');
+      assert.deepEqual(Buffer.from(await image.arrayBuffer()), png);
+      const branding = await (await brand.GET(new NextRequest(url, { headers }))).json();
+      assert.equal(branding.name, companyA.name);
+      assert.equal(branding.logoUrl, body.logoUrl);
+    }
+    const stranger = await auth.generateToken({ id: userA.id, email: userA.email, name: userA.name, role: 'ADMIN', companyId: 'another-company', type: 'COMPANY_USER' });
+    assert.equal((await route.GET(new NextRequest(url, { headers: { cookie: 'barberpro_token=' + stranger } }))).status, 401);
+    assert.equal((await route.DELETE(new NextRequest(url, { method: 'DELETE', headers }))).status, 200);
+    assert.equal(fs.existsSync(logoFilePath(prior)), false);
+    assert.equal((await route.GET(new NextRequest(url, { headers }))).status, 404);
+    assert.equal((await db.company.findUnique({ where: { id: companyA.id } })).logoPath, null);
   });
 
   await check('8. Due reminders (7d, 4d, 1d) fire without duplicates in Brazil timezone', async () => {

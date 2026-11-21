@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Save,
+  Upload,
+  Trash2,
   MapPin,
   MessageSquare,
   Clock,
@@ -11,6 +13,8 @@ import {
   QrCode,
   Copy
 } from 'lucide-react'
+import WaitingRoomManager from '@/components/WaitingRoomManager'
+import { Monitor } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { formatCEP, formatPhone } from '@/lib/masks'
 import {
@@ -54,6 +58,11 @@ const AMENITY_OPTIONS = [
 const PAYMENT_OPTIONS = ['PIX', 'Dinheiro', 'Cartão de Débito', 'Cartão de Crédito']
 
 export default function Configuracoes() {
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState('')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoInputKey, setLogoInputKey] = useState(0)
   const [activeTab, setActiveTab] = useState('general')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -131,7 +140,10 @@ export default function Configuracoes() {
       const res = await apiFetch('/api/settings')
       if (res.ok) {
         const data = await res.json()
-        if (data.general) setGeneralSettings((prev) => ({ ...prev, ...data.general }))
+        if (data.general) {
+          setGeneralSettings((prev) => ({ ...prev, ...data.general }))
+          setLogoUrl(data.general.logoUrl || null)
+        }
         if (data.businessHours && Object.keys(data.businessHours).length > 0) {
           setBusinessHours((prev) => ({ ...prev, ...data.businessHours }))
         }
@@ -159,6 +171,33 @@ export default function Configuracoes() {
     void loadSettings()
   }, [loadSettings])
 
+  useEffect(() => {
+    if (!logoFile) { setLogoPreview(''); return }
+    const preview = URL.createObjectURL(logoFile)
+    setLogoPreview(preview)
+    return () => URL.revokeObjectURL(preview)
+  }, [logoFile])
+
+  const handleLogo = async (remove = false) => {
+    if (uploadingLogo || (!remove && !logoFile)) return
+    setUploadingLogo(true)
+    setFeedback(null)
+    try {
+      const form = new FormData()
+      if (logoFile) form.append('logo', logoFile)
+      const res = await apiFetch('/api/settings/logo', { method: remove ? 'DELETE' : 'POST', ...(remove ? {} : { body: form }) })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Não foi possível atualizar a logomarca.')
+      setLogoUrl(body.logoUrl)
+      setLogoFile(null)
+      setLogoInputKey(key => key + 1)
+      window.dispatchEvent(new Event('company-branding-updated'))
+      setFeedback({ type: 'success', text: body.message })
+    } catch (error) {
+      setFeedback({ type: 'error', text: error instanceof Error ? error.message : 'Erro ao atualizar logomarca.' })
+    } finally { setUploadingLogo(false) }
+  }
+
     const handleSave = async (e?: React.FormEvent) => {
       if (e) e.preventDefault()
       if (saving) return
@@ -179,6 +218,7 @@ export default function Configuracoes() {
 
         const body = await res.json().catch(() => ({}))
         if (res.ok) {
+          window.dispatchEvent(new Event('company-branding-updated'))
           setFeedback({ type: 'success', text: body.message || 'Configurações salvas com sucesso!' })
         } else {
           setFeedback({ type: 'error', text: body.error || 'Erro ao salvar configurações.' })
@@ -215,6 +255,7 @@ export default function Configuracoes() {
 
     const tabs = [
       { id: 'general', label: 'Geral', icon: Globe },
+      { id: 'display', label: 'Painel do Salão', icon: Monitor },
       { id: 'hours', label: 'Horários & Pausa', icon: Clock },
       { id: 'location', label: 'Busca Local & Vitrine', icon: MapPin },
       { id: 'appointments', label: 'Agendamentos & PIX', icon: QrCode },
@@ -274,8 +315,36 @@ export default function Configuracoes() {
 
                     <div className="p-6">
                       {/* ABA 1: GERAL */}
+                      {activeTab === 'display' && <WaitingRoomManager compact />}
                       {activeTab === 'general' && (
                               <div className="space-y-5">
+                                <div className="flex flex-col gap-5 rounded-2xl border border-white/10 bg-[#0d1117] p-5 sm:flex-row sm:items-center">
+                                  <div className="flex h-24 w-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                                    {logoPreview || logoUrl ? (
+                                      // eslint-disable-next-line @next/next/no-img-element -- Local upload preview and authenticated original image.
+                                      <img src={logoPreview || logoUrl || ''} alt="Prévia da logomarca da barbearia" className="h-full w-full object-contain p-2" />
+                                    ) : <span className="px-3 text-center text-xs text-slate-500">Sua logomarca</span>}
+                                  </div>
+                                  <div className="min-w-0 flex-1 space-y-3">
+                                    <SaasField label="Logomarca da Barbearia" htmlFor="cfg-logo" hint="PNG, JPG ou WEBP, até 2 MB. A imagem aparece no topo do menu lateral.">
+                                      <input key={logoInputKey} id="cfg-logo" type="file" accept="image/png,image/jpeg,image/webp" disabled={uploadingLogo} className={`${saasInputClass} file:mr-3 file:rounded-lg file:border-0 file:bg-amber-400/15 file:px-3 file:py-1 file:text-amber-300`} onChange={e => {
+                                        const file = e.target.files?.[0] || null
+                                        if (file && (file.size > 2 * 1024 * 1024 || !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))) {
+                                          setFeedback({ type: 'error', text: 'Selecione uma imagem PNG, JPG ou WEBP de até 2 MB.' })
+                                          e.target.value = ''
+                                          setLogoFile(null)
+                                          return
+                                        }
+                                        setLogoFile(file)
+                                      }} />
+                                    </SaasField>
+                                    <div className="flex flex-wrap gap-3">
+                                      <button type="button" disabled={!logoFile || uploadingLogo} onClick={() => void handleLogo()} className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-xs font-bold text-black disabled:opacity-40"><Upload size={15} />{uploadingLogo ? 'Atualizando...' : 'Enviar logomarca'}</button>
+                                      {logoUrl && <button type="button" disabled={uploadingLogo} onClick={() => void handleLogo(true)} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-xs text-slate-300 disabled:opacity-40"><Trash2 size={15} />Remover logomarca</button>}
+                                    </div>
+                                  </div>
+                                </div>
+
                                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                                   <SaasField label="Nome da Barbearia" required htmlFor="cfg-name">
                                     <input

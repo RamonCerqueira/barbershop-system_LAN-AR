@@ -1,5 +1,9 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasField } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Users,
@@ -467,13 +471,9 @@ export default function ColaboradoresEspecialidades() {
 
       {/* Modal Novo/Editar Colaborador */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {editingCollaborator ? 'Editar Colaborador' : 'Novo Colaborador'}
-            </h3>
+        <SaasModal title={<>{editingCollaborator ? 'Editar Colaborador' : 'Novo Colaborador'}</>} description="Personalize o perfil e as especialidades da sua equipe." icon="team" onClose={() => setShowAddModal(false)}>
             <div className="space-y-4">
-              <input
+              <SaasField label="Nome completo" htmlFor="modal-colaboradores-especialidades-1"><input id="modal-colaboradores-especialidades-1"
                 type="text"
                 placeholder="Nome completo *"
                 value={newCollaborator.name}
@@ -481,8 +481,8 @@ export default function ColaboradoresEspecialidades() {
                   setNewCollaborator({ ...newCollaborator, name: e.target.value })
                 }
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-              />
-              <input
+              /></SaasField>
+              <SaasField label="E-mail" htmlFor="modal-colaboradores-especialidades-2"><input id="modal-colaboradores-especialidades-2"
                 type="email"
                 placeholder="E-mail"
                 value={newCollaborator.email}
@@ -490,8 +490,8 @@ export default function ColaboradoresEspecialidades() {
                   setNewCollaborator({ ...newCollaborator, email: e.target.value })
                 }
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-              />
-              <input
+              /></SaasField>
+              <SaasField label="Telefone" htmlFor="modal-colaboradores-especialidades-3"><input id="modal-colaboradores-especialidades-3"
                 type="text"
                 placeholder="Telefone *"
                 value={newCollaborator.phone}
@@ -499,8 +499,8 @@ export default function ColaboradoresEspecialidades() {
                   setNewCollaborator({ ...newCollaborator, phone: e.target.value })
                 }
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-              />
-              <select
+              /></SaasField>
+              <SaasField label="Barbeiro" htmlFor="modal-colaboradores-especialidades-4"><select id="modal-colaboradores-especialidades-4"
                 value={newCollaborator.role}
                 onChange={(e) =>
                   setNewCollaborator({
@@ -517,9 +517,9 @@ export default function ColaboradoresEspecialidades() {
                 <option value="MASSAGE">Massagem</option>
                 <option value="GENERAL_SERVICES">Serviços Gerais</option>
                 <option value="OTHER">Outro</option>
-              </select>
+              </select></SaasField>
             </div>
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="flex justify-end space-x-3 mt-6 saas-modal-actions">
               <button
                 onClick={() => setShowAddModal(false)}
                 className="px-4 py-2 text-gray-300"
@@ -533,21 +533,16 @@ export default function ColaboradoresEspecialidades() {
                 Salvar
               </button>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
 
       {/* Modal Adicionar Especialidade */}
       {showSpecialtyModal && selectedCollaborator && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Adicionar Especialidade — {selectedCollaborator.name}
-            </h3>
+        <SaasModal title={<>Adicionar Especialidade — {selectedCollaborator.name}</>} description="Personalize o perfil e as especialidades da sua equipe." icon="team" onClose={() => setShowSpecialtyModal(false)}>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Especialidade</label>
-                <select
+                <SaasFieldLabel htmlFor="modal-colaboradores-especialidades-5" className="block text-sm text-gray-300 mb-1">Especialidade</SaasFieldLabel>
+                <select id="modal-colaboradores-especialidades-5"
                   value={newSpecialty.specialty}
                   onChange={(e) =>
                     setNewSpecialty({ ...newSpecialty, specialty: e.target.value })
@@ -564,7 +559,7 @@ export default function ColaboradoresEspecialidades() {
                 </select>
               </div>
               {newSpecialty.specialty === 'CUSTOM' && (
-                <input
+                <SaasField label="Digite o nome da especialidade" htmlFor="modal-colaboradores-especialidades-6"><input id="modal-colaboradores-especialidades-6"
                   type="text"
                   placeholder="Digite o nome da especialidade"
                   value={newSpecialty.customSpecialty}
@@ -572,11 +567,11 @@ export default function ColaboradoresEspecialidades() {
                     setNewSpecialty({ ...newSpecialty, customSpecialty: e.target.value })
                   }
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                />
+                /></SaasField>
               )}
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Nível</label>
-                <select
+                <SaasFieldLabel htmlFor="modal-colaboradores-especialidades-7" className="block text-sm text-gray-300 mb-1">Nível</SaasFieldLabel>
+                <select id="modal-colaboradores-especialidades-7"
                   value={newSpecialty.level}
                   onChange={(e) =>
                     setNewSpecialty({
@@ -593,7 +588,7 @@ export default function ColaboradoresEspecialidades() {
                 </select>
               </div>
             </div>
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="flex justify-end space-x-3 mt-6 saas-modal-actions">
               <button
                 onClick={() => setShowSpecialtyModal(false)}
                 className="px-4 py-2 text-gray-300"
@@ -607,8 +602,7 @@ export default function ColaboradoresEspecialidades() {
                 Adicionar
               </button>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

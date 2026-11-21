@@ -12,42 +12,8 @@ export const PIX_PAYMENT_CONFIG = {
   institution: 'Caixa Econômica Federal'
 } as const
 
-export const SUBSCRIPTION_PLANS: Record<
-  Plan,
-  {
-    code: Plan
-    name: string
-    price: number
-    durationDays: number
-    periodLabel: string
-    description: string
-  }
-> = {
-  MONTHLY: {
-    code: 'MONTHLY',
-    name: 'Mensal',
-    price: 10.0,
-    durationDays: 30,
-    periodLabel: 'mês',
-    description: 'Assinatura Mensal BarberPro (30 dias de acesso completo)'
-  },
-  QUARTERLY: {
-    code: 'QUARTERLY',
-    name: 'Trimestral',
-    price: 30.0,
-    durationDays: 90,
-    periodLabel: 'trimestre',
-    description: 'Assinatura Trimestral BarberPro (90 dias de acesso completo)'
-  },
-  ANNUAL: {
-    code: 'ANNUAL',
-    name: 'Anual',
-    price: 120.0,
-    durationDays: 365,
-    periodLabel: 'ano',
-    description: 'Assinatura Anual BarberPro (365 dias de acesso completo)'
-  }
-}
+export { SUBSCRIPTION_PLANS } from './plans'
+import { SUBSCRIPTION_PLANS, AVAILABLE_PLANS, isAvailablePlan, quotePlan, subscriptionPeriodEnd } from './plans'
 
 export function brazilDateString(date: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -132,7 +98,7 @@ export function evaluateCompanySubscription(
       currentPeriodEnd: company.currentPeriodEnd,
       plan: company.plan,
       planName: planInfo.name,
-      planPrice: Number(company.planPrice || planInfo.price),
+      planPrice: planInfo.price,
       warningLevel: 'danger',
       message: 'Sua conta está suspensa. Entre em contato com o suporte ou regularize sua assinatura.'
     }
@@ -164,7 +130,7 @@ export function evaluateCompanySubscription(
         currentPeriodEnd: company.currentPeriodEnd,
         plan: company.plan,
         planName: planInfo.name,
-        planPrice: Number(company.planPrice || planInfo.price),
+        planPrice: planInfo.price,
         warningLevel,
         message
       }
@@ -181,7 +147,7 @@ export function evaluateCompanySubscription(
       currentPeriodEnd: company.currentPeriodEnd,
       plan: company.plan,
       planName: planInfo.name,
-      planPrice: Number(company.planPrice || planInfo.price),
+      planPrice: planInfo.price,
       warningLevel: 'danger',
       message: `Sua assinatura venceu em ${formatBrDate(company.currentPeriodEnd)}. Realize o pagamento via PIX e aguarde a confirmação do administrador.`
     }
@@ -210,7 +176,7 @@ export function evaluateCompanySubscription(
       currentPeriodEnd: null,
       plan: company.plan,
       planName: planInfo.name,
-      planPrice: Number(company.planPrice || planInfo.price),
+      planPrice: planInfo.price,
       warningLevel,
       message
     }
@@ -227,7 +193,7 @@ export function evaluateCompanySubscription(
     currentPeriodEnd: null,
     plan: company.plan,
     planName: planInfo.name,
-    planPrice: Number(company.planPrice || planInfo.price),
+    planPrice: planInfo.price,
     warningLevel: 'danger',
     message:
       'Seu período gratuito de 7 dias foi encerrado. Realize o pagamento via PIX e aguarde a aprovação do administrador para liberar o acesso.'
@@ -282,7 +248,7 @@ export async function getCompanySubscriptionStatus(companyId: string) {
     },
     subscription: evaluation,
     pix: PIX_PAYMENT_CONFIG,
-    plans: Object.values(SUBSCRIPTION_PLANS),
+    plans: AVAILABLE_PLANS.map(plan => quotePlan(company.plan, plan.code, Boolean(company.subscriptionStartedAt))),
     payments: payments.map((p) => ({
       ...p,
       amount: Number(p.amount)
@@ -336,7 +302,7 @@ export async function submitPixPayment(params: {
   proofMimeType?: string | null
 }) {
   const planInfo = SUBSCRIPTION_PLANS[params.plan]
-  if (!planInfo) {
+  if (!planInfo || !isAvailablePlan(params.plan)) {
     throw new HttpError(400, 'Plano selecionado inválido.')
   }
 
@@ -345,6 +311,8 @@ export async function submitPixPayment(params: {
     if (!company) {
       throw new HttpError(404, 'Empresa não encontrada.')
     }
+
+    const quote = quotePlan(company.plan, params.plan as import('./plans').PlanCode, Boolean(company.subscriptionStartedAt))
 
     const existingPending = await tx.subscriptionPayment.findFirst({
       where: {
@@ -365,7 +333,7 @@ export async function submitPixPayment(params: {
       data: {
         companyId: params.companyId,
         plan: planInfo.code,
-        amount: planInfo.price,
+        amount: quote.price,
         status: 'PENDING',
         paymentMethod: 'PIX',
         pixKey: PIX_PAYMENT_CONFIG.key,
@@ -383,7 +351,7 @@ export async function submitPixPayment(params: {
         companyId: params.companyId,
         type: 'PAYMENT',
         title: 'Pagamento PIX enviado para análise',
-        message: `Recebemos sua solicitação de pagamento do plano ${planInfo.name} (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(planInfo.price)}). O acesso será liberado após a confirmação pelo administrador.`
+        message: `Recebemos sua solicitação de pagamento do plano ${planInfo.name} (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(quote.price)}). O acesso será liberado após a confirmação pelo administrador.`
       }
     })
 
@@ -456,7 +424,7 @@ export async function reviewSubscriptionPayment(params: {
       payment.company.currentPeriodEnd && payment.company.currentPeriodEnd.getTime() > now.getTime()
         ? payment.company.currentPeriodEnd
         : now
-    const periodEnd = addDays(baseStart, planInfo.durationDays)
+    const periodEnd = subscriptionPeriodEnd(baseStart, payment.plan)
 
     const approved = await tx.subscriptionPayment.update({
       where: { id: payment.id },
@@ -475,7 +443,7 @@ export async function reviewSubscriptionPayment(params: {
       data: {
         isActive: true,
         plan: payment.plan,
-        planPrice: planInfo.price,
+        planPrice: SUBSCRIPTION_PLANS[payment.plan].price,
         subscriptionStatus: 'ACTIVE',
         subscriptionStartedAt: payment.company.subscriptionStartedAt || now,
         currentPeriodEnd: periodEnd,

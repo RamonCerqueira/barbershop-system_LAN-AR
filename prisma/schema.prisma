@@ -32,6 +32,11 @@ model Company {
   birthDate             DateTime
   address               String
   phone                 String
+  waitingRoomEnabled    Boolean            @default(false)
+  waitingRoomToken      String?            @unique
+  waitingRoomCalledId   String?
+  waitingRoomCalledAt   DateTime?
+  logoPath              String?
   plan                  Plan               @default(MONTHLY)
   planPrice             Decimal            @db.Decimal(12, 2)
   isActive              Boolean            @default(true)
@@ -67,6 +72,13 @@ model Company {
 enum Plan {
   MONTHLY
   QUARTERLY
+  SEMIANNUAL
+  PRO_MONTHLY
+  PRO_SEMIANNUAL
+  PRO_ANNUAL
+  ELITE_MONTHLY
+  ELITE_SEMIANNUAL
+  ELITE_ANNUAL
   ANNUAL
 }
 
@@ -91,6 +103,7 @@ model User {
   email     String   @unique
   password  String
   name      String
+  avatarPath String?
   role      UserRole @default(ADMIN)
   companyId String
   isActive  Boolean  @default(true)

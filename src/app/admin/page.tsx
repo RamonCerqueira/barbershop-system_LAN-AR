@@ -1,5 +1,10 @@
 'use client'
 
+import { SaasModal } from '@/components/ui/SaasModal'
+
+import type { Plan } from '@prisma/client'
+import { SUBSCRIPTION_PLANS, AVAILABLE_PLANS } from '@/lib/plans'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Bell,
@@ -35,7 +40,7 @@ interface CompanyItem {
   phone: string
   cpf: string
   address: string
-  plan: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+  plan: Plan
   planPrice: number
   isActive: boolean
   status: string
@@ -55,7 +60,7 @@ interface CompanyItem {
 interface AdminPaymentItem {
   id: string
   companyId: string
-  plan: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+  plan: Plan
   amount: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   pixKey: string
@@ -320,18 +325,7 @@ export default function AdminDashboard() {
     router.push('/login')
   }
 
-  const getPlanName = (plan: string) => {
-    switch (plan) {
-      case 'MONTHLY':
-        return 'Mensal'
-      case 'QUARTERLY':
-        return 'Trimestral'
-      case 'ANNUAL':
-        return 'Anual'
-      default:
-        return plan
-    }
-  }
+  const getPlanName = (plan: string) => SUBSCRIPTION_PLANS[plan as Plan]?.name || plan
 
   const formatBr = (iso: string | null | undefined) =>
     iso ? new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'
@@ -867,17 +861,7 @@ export default function AdminDashboard() {
 
       {/* Modal Detalhes da Empresa */}
       {selectedCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="dashboard-dialog-panel w-full max-w-md space-y-4 rounded-[18px] border border-white/10 bg-[#141920] p-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">{selectedCompany.name}</h3>
-              <button
-                onClick={() => setSelectedCompany(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+        <SaasModal title={<>{selectedCompany.name}</>} description="Gerencie os dados da barbearia e sua assinatura." icon="company" onClose={() => setSelectedCompany(null)}>
             <div className="space-y-2 text-sm text-slate-300">
               <p><strong>Responsável:</strong> {selectedCompany.owner}</p>
               <p><strong>CPF:</strong> {selectedCompany.cpf}</p>
@@ -887,15 +871,12 @@ export default function AdminDashboard() {
               <p><strong>Assinatura:</strong> {selectedCompany.subscriptionStatus || 'TRIAL'}</p>
               <p><strong>Cadastro:</strong> {selectedCompany.joinDate}</p>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
 
       {/* Modal Editar Empresa */}
       {editingCompany && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="dashboard-dialog-panel w-full max-w-md rounded-[18px] border border-white/10 bg-[#141920] p-6">
-            <h3 className="mb-4 text-lg font-bold text-white">Editar Barbearia</h3>
+        <SaasModal title={<>Editar Barbearia</>} description="Gerencie os dados da barbearia e sua assinatura." icon="company" onClose={() => setEditingCompany(null)}>
             <form onSubmit={handleUpdateCompany} className="space-y-4">
               <SaasField label="Nome da Barbearia" required>
                 <input
@@ -926,12 +907,10 @@ export default function AdminDashboard() {
                   }
                   className={saasInputClass}
                 >
-                  <option value="MONTHLY">Mensal (R$ 10,00)</option>
-                  <option value="QUARTERLY">Trimestral (R$ 30,00)</option>
-                  <option value="ANNUAL">Anual (R$ 120,00)</option>
+                  {AVAILABLE_PLANS.map(plan => <option key={plan.code} value={plan.code}>{plan.name} ({formatCurrencyBRL(plan.price)})</option>)}
                 </select>
               </SaasField>
-              <div className="flex justify-end space-x-3 pt-2">
+              <div className="flex justify-end space-x-3 pt-2 saas-modal-actions">
                 <button
                   type="button"
                   onClick={() => setEditingCompany(null)}
@@ -947,15 +926,12 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
 
       {/* Modal Rejeitar Pagamento */}
       {rejectingPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="dashboard-dialog-panel w-full max-w-md rounded-[18px] border border-white/10 bg-[#141920] p-6">
-            <h3 className="mb-2 text-lg font-bold text-white">Rejeitar Pagamento PIX</h3>
+        <SaasModal title={<>Rejeitar Pagamento PIX</>} tone="danger" description="Gerencie os dados da barbearia e sua assinatura." icon="company" onClose={() => setRejectingPayment(null)}>
             <p className="mb-4 text-xs text-slate-400">
               Barbearia: <strong className="text-white">{rejectingPayment.company.name}</strong> ({formatCurrencyBRL(rejectingPayment.amount)})
             </p>
@@ -971,7 +947,7 @@ export default function AdminDashboard() {
                   className={saasInputClass}
                 />
               </SaasField>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 saas-modal-actions">
                 <button
                   type="button"
                   onClick={() => setRejectingPayment(null)}
@@ -988,8 +964,7 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

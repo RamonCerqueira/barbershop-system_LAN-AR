@@ -1,3 +1,4 @@
+import { SUBSCRIPTION_PLANS } from '@/lib/plans'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -38,10 +39,7 @@ export async function GET(request: NextRequest) {
     const monthlyRevenue = companies
       .filter((c) => c.isActive)
       .reduce((acc, c) => {
-        if (c.plan === 'MONTHLY') return acc + Number(c.planPrice)
-        if (c.plan === 'QUARTERLY') return acc + Number(c.planPrice) / 3
-        if (c.plan === 'ANNUAL') return acc + Number(c.planPrice) / 12
-        return acc + Number(c.planPrice)
+        return acc + Number(c.planPrice) / SUBSCRIPTION_PLANS[c.plan].months
       }, 0)
 
     const { searchParams } = new URL(request.url)
@@ -58,9 +56,7 @@ export async function GET(request: NextRequest) {
         (c) => new Date(c.createdAt) <= endOfRefMonth && c.isActive
       )
       const rev = activeUpToMonth.reduce((sum, c) => {
-        if (c.plan === 'QUARTERLY') return sum + Number(c.planPrice) / 3
-        if (c.plan === 'ANNUAL') return sum + Number(c.planPrice) / 12
-        return sum + Number(c.planPrice)
+        return sum + Number(c.planPrice) / SUBSCRIPTION_PLANS[c.plan].months
       }, 0)
       revenueHistory.push({
         month: `${monthNames[endOfRefMonth.getMonth()]}/${String(endOfRefMonth.getFullYear()).slice(-2)}`,

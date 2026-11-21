@@ -1,5 +1,8 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import React, { useState, useEffect, useCallback } from 'react'
 import { PlusCircle, Edit, Trash2, Users, Phone, Mail, Award } from 'lucide-react'
 import Link from 'next/link'
@@ -295,18 +298,14 @@ export default function ColaboradoresPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 border border-gray-700 p-6 rounded-xl shadow-xl w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4 text-white">
-              {editingEmployee ? 'Editar Colaborador' : 'Adicionar Colaborador'}
-            </h2>
+        <SaasModal title={<>{editingEmployee ? 'Editar Colaborador' : 'Adicionar Colaborador'}</>} description="Organize sua equipe e os dados dos profissionais." icon="team" onClose={() => setIsModalOpen(false)}>
             <form onSubmit={handleSave} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-1" className="block text-gray-300 text-sm font-medium mb-1">
                     Nome Completo *
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-colaboradores-1"
                     type="text"
                     required
                     value={formData.name}
@@ -315,10 +314,10 @@ export default function ColaboradoresPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-2" className="block text-gray-300 text-sm font-medium mb-1">
                     Telefone / WhatsApp *
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-colaboradores-2"
                     type="text"
                     required
                     value={formData.phone}
@@ -331,10 +330,10 @@ export default function ColaboradoresPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-3" className="block text-gray-300 text-sm font-medium mb-1">
                     E-mail
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-colaboradores-3"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -342,10 +341,10 @@ export default function ColaboradoresPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-4" className="block text-gray-300 text-sm font-medium mb-1">
                     Função *
-                  </label>
-                  <select
+                  </SaasFieldLabel>
+                  <select id="modal-colaboradores-4"
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                     className="w-full py-2 px-3 rounded-lg bg-gray-900 text-white border border-gray-700 focus:outline-none focus:border-orange-500"
@@ -363,10 +362,10 @@ export default function ColaboradoresPage() {
 
               {formData.role === 'OTHER' && (
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-5" className="block text-gray-300 text-sm font-medium mb-1">
                     Função Personalizada
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-colaboradores-5"
                     type="text"
                     value={formData.customRole}
                     onChange={(e) =>
@@ -379,10 +378,10 @@ export default function ColaboradoresPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-6" className="block text-gray-300 text-sm font-medium mb-1">
                     Salário Base (R$)
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-colaboradores-6"
                     type="number"
                     step="0.01"
                     value={formData.salary}
@@ -391,10 +390,10 @@ export default function ColaboradoresPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-7" className="block text-gray-300 text-sm font-medium mb-1">
                     Comissão (%)
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-colaboradores-7"
                     type="number"
                     step="1"
                     min="0"
@@ -407,10 +406,10 @@ export default function ColaboradoresPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-1">
+                  <SaasFieldLabel htmlFor="modal-colaboradores-8" className="block text-gray-300 text-sm font-medium mb-1">
                     Data de Admissão
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-colaboradores-8"
                     type="date"
                     value={formData.hireDate}
                     onChange={(e) =>
@@ -422,10 +421,10 @@ export default function ColaboradoresPage() {
               </div>
 
               <div>
-                <label className="block text-gray-300 text-sm font-medium mb-1">
+                <SaasFieldLabel htmlFor="modal-colaboradores-9" className="block text-gray-300 text-sm font-medium mb-1">
                   Especialidades (separadas por vírgula)
-                </label>
-                <input
+                </SaasFieldLabel>
+                <input id="modal-colaboradores-9"
                   type="text"
                   value={formData.specialtiesText}
                   onChange={(e) =>
@@ -436,7 +435,7 @@ export default function ColaboradoresPage() {
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 saas-modal-actions">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
@@ -453,8 +452,7 @@ export default function ColaboradoresPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

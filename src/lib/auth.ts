@@ -1,3 +1,5 @@
+import type { Plan } from '@prisma/client'
+import { SUBSCRIPTION_PLANS } from '@/lib/plans'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { NextRequest } from 'next/server'
@@ -13,6 +15,7 @@ export interface AuthUserPayload {
   companyId?: string
   companyName?: string
   sessionId?: string
+  avatarUrl?: string | null
   employeeId?: string
   type: 'SYSTEM_OWNER' | 'COMPANY_USER'
 }
@@ -70,8 +73,8 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUserPayload
     if (!user) return null
     const pathname = new URL(request.url).pathname
     if (user.role === 'EMPLOYEE' && !['/api/auth/me', '/api/auth/logout'].includes(pathname)) return null
-    if (user.role !== 'ADMIN' && /^\/api\/(settings|employees|users)(\/|$)/.test(pathname)) return null
-    return { ...decoded, role: user.role, email: user.email, name: user.name, companyName: user.company.name }
+    if (user.role !== 'ADMIN' && /^\/api\/(settings|employees|users)(\/|$)/.test(pathname) && !(pathname === '/api/settings/branding' && request.method === 'GET')) return null
+    return { ...decoded, role: user.role, email: user.email, name: user.name, companyName: user.company.name, avatarUrl: user.avatarPath ? `/api/profile/avatar?v=${user.avatarPath}` : null }
   }
 
   if (decoded.type === 'SYSTEM_OWNER') {
@@ -132,14 +135,9 @@ export async function createCompany(data: {
   birthDate: string
   address: string
   phone: string
-  plan: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+  plan: Plan
   password: string
 }) {
-  const planPrices = {
-    MONTHLY: 10.0,
-    QUARTERLY: 30.0,
-    ANNUAL: 120.0
-  }
 
   const hashedPassword = await hashPassword(data.password)
   const now = new Date()
@@ -156,7 +154,7 @@ export async function createCompany(data: {
         address: data.address,
         phone: data.phone,
         plan: data.plan,
-        planPrice: planPrices[data.plan],
+        planPrice: SUBSCRIPTION_PLANS[data.plan].price,
         subscriptionStatus: 'TRIAL',
         trialStartedAt: now,
         trialEndsAt

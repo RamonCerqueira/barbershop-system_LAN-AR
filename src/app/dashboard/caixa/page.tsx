@@ -1,5 +1,9 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasField } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   DollarSign,
@@ -423,19 +427,7 @@ export default function Caixa() {
 
       {/* Modal Registrar Venda */}
       {showSaleModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">
-                Registrar Recebimento / Venda
-              </h3>
-              <button
-                onClick={() => setShowSaleModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        <SaasModal title={<>Registrar Recebimento / Venda</>} description="Mantenha os recebimentos da barbearia sempre em dia." icon="finance" onClose={() => setShowSaleModal(false)} size="wide">
 
             <div className="flex gap-2 mb-6">
               <button
@@ -467,13 +459,13 @@ export default function Caixa() {
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={18}
                   />
-                  <input
+                  <SaasField label="Buscar agendamento do dia..." htmlFor="modal-caixa-1"><input id="modal-caixa-1"
                     type="text"
                     placeholder="Buscar agendamento do dia..."
                     value={searchClient}
                     onChange={(e) => setSearchClient(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                  />
+                  /></SaasField>
                 </div>
 
                 {filteredAppointments.length > 0 && (
@@ -505,31 +497,31 @@ export default function Caixa() {
 
                 {!selectedAppointment && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-700">
-                    <input
+                    <SaasField label="Ou descrição avulsa do serviço" htmlFor="modal-caixa-2"><input id="modal-caixa-2"
                       type="text"
                       placeholder="Ou descrição avulsa do serviço"
                       value={customDescription}
                       onChange={(e) => setCustomDescription(e.target.value)}
                       className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
-                    />
-                    <input
+                    /></SaasField>
+                    <SaasField label="Valor R$" htmlFor="modal-caixa-3"><input id="modal-caixa-3"
                       type="number"
                       step="0.01"
                       placeholder="Valor R$"
                       value={customAmount}
                       onChange={(e) => setCustomAmount(e.target.value)}
                       className="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
-                    />
+                    /></SaasField>
                   </div>
                 )}
               </div>
             ) : (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">
+                  <SaasFieldLabel htmlFor="modal-caixa-4" className="block text-sm text-gray-300 mb-1">
                     Selecione o Produto
-                  </label>
-                  <select
+                  </SaasFieldLabel>
+                  <select id="modal-caixa-4"
                     value={selectedProductId}
                     onChange={(e) => setSelectedProductId(e.target.value)}
                     className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
@@ -543,8 +535,8 @@ export default function Caixa() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Quantidade</label>
-                  <input
+                  <SaasFieldLabel htmlFor="modal-caixa-5" className="block text-sm text-gray-300 mb-1">Quantidade</SaasFieldLabel>
+                  <input id="modal-caixa-5"
                     type="number"
                     min="1"
                     value={productQty}
@@ -557,9 +549,9 @@ export default function Caixa() {
 
             {/* Payment Method */}
             <div className="mt-6">
-              <label className="block text-sm text-gray-300 mb-2">
+              <SaasFieldLabel className="block text-sm text-gray-300 mb-2">
                 Forma de Pagamento
-              </label>
+              </SaasFieldLabel>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {(
                   [
@@ -590,9 +582,9 @@ export default function Caixa() {
 
             {paymentMethod === 'PIX' && (
               <div className="mt-4 p-4 bg-gray-900 border border-gray-700 rounded-lg">
-                <label className="block text-xs text-gray-400 mb-2">
+                <SaasFieldLabel className="block text-xs text-gray-400 mb-2">
                   Anexar Comprovante PIX (opcional — se anexado, vai para fila de validação):
-                </label>
+                </SaasFieldLabel>
                 <input
                   type="file"
                   accept="image/*"
@@ -602,7 +594,7 @@ export default function Caixa() {
               </div>
             )}
 
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="flex justify-end space-x-3 mt-6 saas-modal-actions">
               <button
                 type="button"
                 onClick={() => setShowSaleModal(false)}
@@ -619,25 +611,12 @@ export default function Caixa() {
                 {submitting ? 'Registrando...' : 'Confirmar Recebimento'}
               </button>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
 
       {/* Modal Validação PIX */}
       {showPixValidation && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">
-                Validação de Comprovantes PIX ({pendingPixSales.length})
-              </h3>
-              <button
-                onClick={() => setShowPixValidation(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        <SaasModal title={<>Validação de Comprovantes PIX ({pendingPixSales.length})</>} description="Mantenha os recebimentos da barbearia sempre em dia." icon="finance" onClose={() => setShowPixValidation(false)} size="wide">
 
             {pendingPixSales.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
@@ -675,7 +654,7 @@ export default function Caixa() {
                       </div>
                     )}
 
-                    <div className="flex justify-end space-x-3">
+                    <div className="flex justify-end space-x-3 saas-modal-actions">
                       <button
                         onClick={() => handleValidatePix(pix.id, 'REJECTED')}
                         className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs flex items-center gap-1"
@@ -693,8 +672,7 @@ export default function Caixa() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

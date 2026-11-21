@@ -1,3 +1,4 @@
+import { PLAN_CODES } from './plans'
 import { z } from 'zod'
 
 export const emailInput = z.string().trim().email().max(254).transform(v => v.toLowerCase())
@@ -20,7 +21,7 @@ export const companyInput = z.object({
   cpf: z.string().transform(v => v.replace(/\D/g, '')).refine(validCpf, 'CPF inválido'),
   fullName: z.string().trim().min(2).max(100), birthDate: dateInput.refine(v => v < new Date().toISOString().slice(0,10), 'Nascimento inválido'),
   address: z.string().trim().min(5).max(500), phone: phoneInput,
-  plan: z.enum(['MONTHLY','QUARTERLY','ANNUAL']), password: passwordInput,
+  plan: z.enum(PLAN_CODES), password: passwordInput,
   acceptTerms: z.boolean().refine(value => value, 'Você precisa aceitar os termos e a política de privacidade.')
 })
 export const bookingInput = z.object({

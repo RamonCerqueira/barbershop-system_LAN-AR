@@ -1,5 +1,8 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Users,
@@ -329,15 +332,11 @@ export default function Clientes() {
 
       {/* Modal Form */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {editingClient ? 'Editar Cliente' : 'Novo Cliente'}
-            </h3>
+        <SaasModal title={<>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</>} description="Cuide dos dados e do relacionamento com seus clientes." icon="clients" onClose={() => setShowModal(false)}>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Nome Completo *</label>
-                <input
+                <SaasFieldLabel htmlFor="modal-clientes-1" className="block text-sm text-gray-300 mb-1">Nome Completo *</SaasFieldLabel>
+                <input id="modal-clientes-1"
                   type="text"
                   required
                   value={formData.fullName}
@@ -346,8 +345,8 @@ export default function Clientes() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Telefone *</label>
-                <input
+                <SaasFieldLabel htmlFor="modal-clientes-2" className="block text-sm text-gray-300 mb-1">Telefone *</SaasFieldLabel>
+                <input id="modal-clientes-2"
                   type="tel"
                   required
                   maxLength={15}
@@ -358,8 +357,8 @@ export default function Clientes() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Email</label>
-                <input
+                <SaasFieldLabel htmlFor="modal-clientes-3" className="block text-sm text-gray-300 mb-1">Email</SaasFieldLabel>
+                <input id="modal-clientes-3"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -367,10 +366,10 @@ export default function Clientes() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-clientes-4" className="block text-sm text-gray-300 mb-1">
                   Data de Nascimento
-                </label>
-                <input
+                </SaasFieldLabel>
+                <input id="modal-clientes-4"
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) =>
@@ -380,8 +379,8 @@ export default function Clientes() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Endereço</label>
-                <input
+                <SaasFieldLabel htmlFor="modal-clientes-5" className="block text-sm text-gray-300 mb-1">Endereço</SaasFieldLabel>
+                <input id="modal-clientes-5"
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -389,8 +388,8 @@ export default function Clientes() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Observações</label>
-                <textarea
+                <SaasFieldLabel htmlFor="modal-clientes-6" className="block text-sm text-gray-300 mb-1">Observações</SaasFieldLabel>
+                <textarea id="modal-clientes-6"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
@@ -407,11 +406,11 @@ export default function Clientes() {
                   }
                   className="h-4 w-4 accent-orange-500 rounded"
                 />
-                <label htmlFor="whatsappConsent" className="text-sm text-gray-300 cursor-pointer">
+                <SaasFieldLabel htmlFor="whatsappConsent" className="text-sm text-gray-300 cursor-pointer">
                   Cliente autoriza comunicações e lembretes por WhatsApp
-                </label>
+                </SaasFieldLabel>
               </div>
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 saas-modal-actions">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -427,23 +426,12 @@ export default function Clientes() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
 
       {/* Client Details Modal */}
       {selectedClient && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Detalhes do Cliente</h3>
-              <button
-                onClick={() => setSelectedClient(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+        <SaasModal title={<>Detalhes do Cliente</>} description="Cuide dos dados e do relacionamento com seus clientes." icon="clients" onClose={() => setSelectedClient(null)}>
             <div className="space-y-3 text-sm">
               <p className="text-white font-semibold text-base">
                 {selectedClient.fullName}
@@ -481,8 +469,7 @@ export default function Clientes() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

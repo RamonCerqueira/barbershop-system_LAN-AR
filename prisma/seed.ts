@@ -42,7 +42,7 @@ async function main() {
       address: 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP, 01310-100',
       phone: '(11) 99999-9999',
       plan: 'MONTHLY',
-      planPrice: 10.0,
+      planPrice: 19.0,
       isActive: true,
     },
   })

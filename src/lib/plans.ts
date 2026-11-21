@@ -1,0 +1,38 @@
+// Catálogo único para contratação, cobrança, administração e apresentação.
+export const PLAN_CODES = ['MONTHLY', 'SEMIANNUAL', 'ANNUAL', 'PRO_MONTHLY', 'PRO_SEMIANNUAL', 'PRO_ANNUAL', 'ELITE_MONTHLY', 'ELITE_SEMIANNUAL', 'ELITE_ANNUAL'] as const
+export type PlanCode = typeof PLAN_CODES[number]
+export const SUBSCRIPTION_PLANS = {
+  MONTHLY: { code: 'MONTHLY', name: 'Essencial — mês', price: 19, months: 1, rank: 0, durationDays: 30, periodLabel: 'mês', period: 'mês', description: 'Assinatura Essencial (mês)' },
+  SEMIANNUAL: { code: 'SEMIANNUAL', name: 'Essencial — 6 meses', price: 100, months: 6, rank: 0, durationDays: 180, periodLabel: '6 meses', period: '6 meses', description: 'Assinatura Essencial (6 meses)' },
+  ANNUAL: { code: 'ANNUAL', name: 'Essencial — 12 meses', price: 190, months: 12, rank: 0, durationDays: 365, periodLabel: '12 meses', period: '12 meses', description: 'Assinatura Essencial (12 meses)' },
+  PRO_MONTHLY: { code: 'PRO_MONTHLY', name: 'Profissional — mês', price: 39, months: 1, rank: 1, durationDays: 30, periodLabel: 'mês', period: 'mês', description: 'Assinatura Profissional (mês)' },
+  PRO_SEMIANNUAL: { code: 'PRO_SEMIANNUAL', name: 'Profissional — 6 meses', price: 210, months: 6, rank: 1, durationDays: 180, periodLabel: '6 meses', period: '6 meses', description: 'Assinatura Profissional (6 meses)' },
+  PRO_ANNUAL: { code: 'PRO_ANNUAL', name: 'Profissional — 12 meses', price: 420, months: 12, rank: 1, durationDays: 365, periodLabel: '12 meses', period: '12 meses', description: 'Assinatura Profissional (12 meses)' },
+  ELITE_MONTHLY: { code: 'ELITE_MONTHLY', name: 'Elite — mês', price: 59, months: 1, rank: 2, durationDays: 30, periodLabel: 'mês', period: 'mês', description: 'Assinatura Elite (mês)' },
+  ELITE_SEMIANNUAL: { code: 'ELITE_SEMIANNUAL', name: 'Elite — 6 meses', price: 330, months: 6, rank: 2, durationDays: 180, periodLabel: '6 meses', period: '6 meses', description: 'Assinatura Elite (6 meses)' },
+  ELITE_ANNUAL: { code: 'ELITE_ANNUAL', name: 'Elite — 12 meses', price: 680, months: 12, rank: 2, durationDays: 365, periodLabel: '12 meses', period: '12 meses', description: 'Assinatura Elite (12 meses)' },
+  QUARTERLY: { code: 'QUARTERLY', name: 'Trimestral (legado)', price: 30, months: 3, rank: 0, durationDays: 90, periodLabel: 'trimestre', period: 'trimestre', description: 'Assinatura trimestral legada' }
+} as const
+export const AVAILABLE_PLANS = PLAN_CODES.map(code => SUBSCRIPTION_PLANS[code])
+export function isAvailablePlan(value: string): value is PlanCode {
+  return PLAN_CODES.some(code => code === value)
+}
+export function quotePlan(current: keyof typeof SUBSCRIPTION_PLANS, target: PlanCode, hasPaidSubscription: boolean) {
+  const from = SUBSCRIPTION_PLANS[current]
+  const to = SUBSCRIPTION_PLANS[target]
+  const upgrade = to.rank > from.rank || (to.rank === from.rank && to.months > from.months)
+  const discountPercent = hasPaidSubscription && upgrade && to.months >= 6 ? 10 : 0
+  return { ...to, basePrice: to.price, discountPercent, price: Math.round(to.price * (100 - discountPercent)) / 100 }
+}
+
+// Calendar months, clamped to the last day of the destination month.
+export function subscriptionPeriodEnd(start: Date, code: keyof typeof SUBSCRIPTION_PLANS): Date {
+  if (code === 'QUARTERLY') return new Date(start.getTime() + 90 * 86_400_000)
+  const end = new Date(start)
+  const day = end.getUTCDate()
+  end.setUTCDate(1)
+  end.setUTCMonth(end.getUTCMonth() + SUBSCRIPTION_PLANS[code].months)
+  const lastDay = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate()
+  end.setUTCDate(Math.min(day, lastDay))
+  return end
+}

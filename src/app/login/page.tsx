@@ -1,5 +1,7 @@
 "use client";
 
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState } from "react";
 import {
   Eye,
@@ -9,8 +11,6 @@ import {
   Building2,
   Lock,
   Mail,
-  KeyRound,
-  X,
   Scissors,
 } from "lucide-react";
 import Link from "next/link";
@@ -281,20 +281,7 @@ export default function Login() {
 
       {/* Modal de Recuperação de Senha */}
       {showResetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="dashboard-dialog-panel w-full max-w-md rounded-[18px] border border-white/10 bg-[#141920] p-6 text-white shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <KeyRound className="text-[#f5b51b]" size={20} />
-                <h3 className="text-lg font-bold">Recuperar Senha</h3>
-              </div>
-              <button
-                onClick={() => setShowResetModal(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        <SaasModal title={<>Recuperar Senha</>} description="Recupere o acesso à sua conta com segurança." icon="security" onClose={() => setShowResetModal(false)}>
 
             {resetError && (
               <div className="mb-4">
@@ -318,7 +305,7 @@ export default function Login() {
                     placeholder="seu@email.com"
                   />
                 </SaasField>
-                <div className="flex justify-end space-x-2 pt-2">
+                <div className="flex justify-end space-x-2 pt-2 saas-modal-actions">
                   <button
                     type="button"
                     onClick={() => setShowResetModal(false)}
@@ -364,7 +351,7 @@ export default function Login() {
                     placeholder="8+ caracteres, letra, número e símbolo"
                   />
                 </SaasField>
-                <div className="flex justify-end space-x-2 pt-2">
+                <div className="flex justify-end space-x-2 pt-2 saas-modal-actions">
                   <button
                     type="button"
                     onClick={() => setResetStep(1)}
@@ -378,8 +365,7 @@ export default function Login() {
                 </div>
               </form>
             )}
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   );

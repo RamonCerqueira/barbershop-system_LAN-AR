@@ -1,3 +1,4 @@
+import { logoUrl } from '@/lib/company-logo'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     return jsonResponse({
       general: {
         name: company.name,
+        logoUrl: logoUrl(company.logoPath),
         email: company.email,
         phone: company.phone,
         address: company.address,

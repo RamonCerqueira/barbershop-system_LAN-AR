@@ -1,3 +1,4 @@
+import { SUBSCRIPTION_PLANS, type PlanCode } from '@/lib/plans';
 export interface NavItem {
   label: string;
   href: string;
@@ -64,7 +65,7 @@ export interface TestimonialItem {
 
 export interface PricingPlanItem {
   id: 'essencial' | 'profissional' | 'elite';
-  contractPlanKey: 'monthly' | 'quarterly' | 'annual';
+  contractPlanKey: PlanCode;
   name: string;
   subtitle: string;
   referenceMonthlyPrice: number;
@@ -297,12 +298,12 @@ export const TESTIMONIALS_DATA: TestimonialItem[] = [
 export const PRICING_PLANS: PricingPlanItem[] = [
   {
     id: 'essencial',
-    contractPlanKey: 'monthly',
+    contractPlanKey: 'MONTHLY',
     name: 'Essencial',
     subtitle: 'Para começar e organizar sua agenda.',
-    referenceMonthlyPrice: 10,
-    systemCyclePrice: 10,
-    systemCycleLabel: 'Plano Mensal (R$ 10/mês)',
+    referenceMonthlyPrice: SUBSCRIPTION_PLANS.MONTHLY.price,
+    systemCyclePrice: SUBSCRIPTION_PLANS.MONTHLY.price,
+    systemCycleLabel: `6 meses: R$ ${SUBSCRIPTION_PLANS.SEMIANNUAL.price} • 12 meses: R$ ${SUBSCRIPTION_PLANS.ANNUAL.price}`,
     highlighted: false,
     features: [
       'Agendamento online',
@@ -313,12 +314,12 @@ export const PRICING_PLANS: PricingPlanItem[] = [
   },
   {
     id: 'profissional',
-    contractPlanKey: 'quarterly',
+    contractPlanKey: 'PRO_MONTHLY',
     name: 'Profissional',
     subtitle: 'Para barbearias em expansão.',
-    referenceMonthlyPrice: 29,
-    systemCyclePrice: 30,
-    systemCycleLabel: 'Ciclo Trimestral (R$ 30/trimestre)',
+    referenceMonthlyPrice: SUBSCRIPTION_PLANS.PRO_MONTHLY.price,
+    systemCyclePrice: SUBSCRIPTION_PLANS.PRO_MONTHLY.price,
+    systemCycleLabel: `6 meses: R$ ${SUBSCRIPTION_PLANS.PRO_SEMIANNUAL.price} • 12 meses: R$ ${SUBSCRIPTION_PLANS.PRO_ANNUAL.price}`,
     highlighted: true,
     badgeText: 'Em destaque',
     features: [
@@ -330,12 +331,12 @@ export const PRICING_PLANS: PricingPlanItem[] = [
   },
   {
     id: 'elite',
-    contractPlanKey: 'annual',
+    contractPlanKey: 'ELITE_MONTHLY',
     name: 'Elite',
     subtitle: 'Para barbearias com alta demanda.',
-    referenceMonthlyPrice: 59,
-    systemCyclePrice: 120,
-    systemCycleLabel: 'Ciclo Anual (R$ 120/ano)',
+    referenceMonthlyPrice: SUBSCRIPTION_PLANS.ELITE_MONTHLY.price,
+    systemCyclePrice: SUBSCRIPTION_PLANS.ELITE_MONTHLY.price,
+    systemCycleLabel: `6 meses: R$ ${SUBSCRIPTION_PLANS.ELITE_SEMIANNUAL.price} • 12 meses: R$ ${SUBSCRIPTION_PLANS.ELITE_ANNUAL.price}`,
     highlighted: false,
     features: [
       'Todos os recursos',

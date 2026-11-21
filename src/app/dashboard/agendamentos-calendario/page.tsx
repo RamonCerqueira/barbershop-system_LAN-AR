@@ -1,5 +1,9 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasField } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   ChevronLeft,
@@ -12,7 +16,6 @@ import {
   Send,
   Copy,
   Check,
-  X,
   Phone,
   Scissors,
   User
@@ -574,19 +577,7 @@ export default function AgendamentosCalendario() {
 
       {/* Selected Appointment Modal */}
       {selectedAppointment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={() => setSelectedAppointment(null)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="calendar-appointment-title" onClick={(event) => event.stopPropagation()} className="dashboard-dialog-panel bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 id="calendar-appointment-title" className="text-lg font-semibold text-white">
-                Detalhes do Agendamento
-              </h3>
-              <button
-                onClick={() => setSelectedAppointment(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        <SaasModal title={<>Detalhes do Agendamento</>} description="Consulte e organize os atendimentos da sua agenda." icon="calendar" onClose={() => setSelectedAppointment(null)}>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -632,9 +623,9 @@ export default function AgendamentosCalendario() {
               </div>
 
               <div>
-                <label className="block text-xs text-gray-400 mb-2">
+                <SaasFieldLabel className="block text-xs text-gray-400 mb-2">
                   Alterar Status no Banco:
-                </label>
+                </SaasFieldLabel>
                 <div className="grid grid-cols-3 gap-2">
                   {(
                     [
@@ -663,9 +654,9 @@ export default function AgendamentosCalendario() {
               </div>
 
               <div className="border-t border-gray-700 pt-4">
-                <label className="block text-xs text-gray-400 mb-2">
+                <SaasFieldLabel className="block text-xs text-gray-400 mb-2">
                   Link Público de Confirmação do Cliente:
-                </label>
+                </SaasFieldLabel>
                 <div className="flex items-center space-x-2">
                   <input
                     type="text"
@@ -691,33 +682,30 @@ export default function AgendamentosCalendario() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
 
       {/* Modal Novo Agendamento */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" onClick={() => setShowNewModal(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="calendar-new-appointment-title" onClick={(event) => event.stopPropagation()} className="dashboard-dialog-panel bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <h3 id="calendar-new-appointment-title" className="text-lg font-semibold text-white mb-4">Novo Agendamento</h3>
+        <SaasModal title={<>Novo Agendamento</>} description="Consulte e organize os atendimentos da sua agenda." icon="calendar" onClose={() => setShowNewModal(false)}>
             <form onSubmit={handleCreateAppointment} className="space-y-4">
-              <input
+              <SaasField label="Nome do Cliente" htmlFor="modal-agendamentos-calendario-2" required><input id="modal-agendamentos-calendario-2"
                 type="text"
                 required
                 placeholder="Nome do Cliente *"
                 value={newForm.clientName}
                 onChange={(e) => setNewForm({ ...newForm, clientName: e.target.value })}
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-              />
-              <input
+              /></SaasField>
+              <SaasField label="Telefone / WhatsApp" htmlFor="modal-agendamentos-calendario-3" required><input id="modal-agendamentos-calendario-3"
                 type="text"
                 required
                 placeholder="Telefone / WhatsApp *"
                 value={newForm.clientPhone}
                 onChange={(e) => setNewForm({ ...newForm, clientPhone: e.target.value })}
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-              />
-              <select
+              /></SaasField>
+              <SaasField label="Serviço" htmlFor="modal-agendamentos-calendario-4" required><select id="modal-agendamentos-calendario-4"
                 required
                 value={newForm.serviceId}
                 onChange={(e) => setNewForm({ ...newForm, serviceId: e.target.value })}
@@ -729,8 +717,8 @@ export default function AgendamentosCalendario() {
                     {s.name} — R$ {s.price.toFixed(2)}
                   </option>
                 ))}
-              </select>
-              <select
+              </select></SaasField>
+              <SaasField label="Profissional" htmlFor="modal-agendamentos-calendario-5" required><select id="modal-agendamentos-calendario-5"
                 required
                 value={newForm.employeeId}
                 onChange={(e) => setNewForm({ ...newForm, employeeId: e.target.value })}
@@ -742,24 +730,24 @@ export default function AgendamentosCalendario() {
                     {emp.name}
                   </option>
                 ))}
-              </select>
+              </select></SaasField>
               <div className="grid grid-cols-2 gap-3">
-                <input
+                <SaasField label="Data" htmlFor="modal-agendamentos-calendario-6" required><input id="modal-agendamentos-calendario-6"
                   type="date"
                   required
                   value={newForm.date}
                   onChange={(e) => setNewForm({ ...newForm, date: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                />
-                <input
+                /></SaasField>
+                <SaasField label="Horário" htmlFor="modal-agendamentos-calendario-7" required><input id="modal-agendamentos-calendario-7"
                   type="time"
                   required
                   value={newForm.time}
                   onChange={(e) => setNewForm({ ...newForm, time: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white"
-                />
+                /></SaasField>
               </div>
-              <div className="flex justify-end space-x-3 pt-2">
+              <div className="flex justify-end space-x-3 pt-2 saas-modal-actions">
                 <button
                   type="button"
                   onClick={() => setShowNewModal(false)}
@@ -775,8 +763,7 @@ export default function AgendamentosCalendario() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { AlertCircle, CheckCircle2, Info, AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Info, AlertTriangle, Loader2, UserRound, Scissors, CalendarDays, Clock3, Phone, Mail, MapPin, Wallet, FileText, Tag, Package, BadgeCheck, Link2, AlignLeft, LockKeyhole } from 'lucide-react'
 
 export function SaasPageHeader({
   kicker,
@@ -65,6 +65,30 @@ export function SaasSectionCard({
   )
 }
 
+function fieldIcon(label: string) {
+  if (/senha|código|token/i.test(label)) return LockKeyhole
+  if (/email|e-mail/i.test(label)) return Mail
+  if (/telefone|whatsapp|celular/i.test(label)) return Phone
+  if (/cliente|nome|responsável|barbearia/i.test(label)) return UserRound
+  if (/profissional|colaborador|especialidade/i.test(label)) return BadgeCheck
+  if (/serviço/i.test(label)) return Scissors
+  if (/data|nascimento|dia/i.test(label)) return CalendarDays
+  if (/horário|hora|duração|intervalo|minuto/i.test(label)) return Clock3
+  if (/valor|preço|custo|pagamento|salário|comissão|pix/i.test(label)) return Wallet
+  if (/endereço|cidade|bairro|cep|local/i.test(label)) return MapPin
+  if (/produto|estoque|quantidade/i.test(label)) return Package
+  if (/status|categoria|tipo/i.test(label)) return Tag
+  if (/site|url|link/i.test(label)) return Link2
+  if (/observa|descrição|mensagem/i.test(label)) return AlignLeft
+  return FileText
+}
+
+export function SaasFieldLabel({ children, className = '', iconLabel, ...props }: React.LabelHTMLAttributes<HTMLLabelElement> & { iconLabel?: string }) {
+  const text = React.Children.toArray(children).filter(child => typeof child === 'string').join(' ')
+  const Icon = fieldIcon(iconLabel || text)
+  return <label {...props} className={`saas-field-label ${className}`}><Icon size={14} strokeWidth={1.8} aria-hidden="true" /><span>{children}</span></label>
+}
+
 export function SaasField({
   label,
   required,
@@ -82,15 +106,16 @@ export function SaasField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label
+      <SaasFieldLabel
+        iconLabel={label}
         htmlFor={htmlFor}
-        className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-300"
+        className="text-slate-300"
       >
         <span>
           {label}
           {required && <span className="ml-1 text-[#f5b51b]" aria-hidden="true">*</span>}
         </span>
-      </label>
+      </SaasFieldLabel>
       {children}
       {hint && !error && <p className="text-[11px] text-[#8f98a3]">{hint}</p>}
       {error && (
@@ -164,10 +189,10 @@ export function SaasSubmitButton({
       className={`inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] px-5 py-2.5 text-sm font-bold text-[#15120b] shadow-[0_8px_20px_rgba(245,181,27,0.2)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       {loading && <Loader2 size={16} className="animate-spin" />}
-      <span>{loading ? loadingText : children}</span>
+      <span className="inline-flex items-center justify-center gap-2">{loading ? loadingText : children}</span>
     </button>
   )
 }
 
 export const saasInputClass =
-  'w-full rounded-xl border border-white/10 bg-[#090c10]/80 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 transition focus:border-[#f4b640] focus:outline-none focus:ring-2 focus:ring-[#f4b640]/20'
+  'saas-input w-full rounded-xl border border-white/10 bg-[#090c10]/80 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 transition focus:border-[#f4b640] focus:outline-none focus:ring-2 focus:ring-[#f4b640]/20'

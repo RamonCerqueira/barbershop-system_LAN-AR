@@ -86,7 +86,7 @@ export function Pricing() {
                         <span className="text-xs text-[#A1A1AA]">/mês</span>
                       </div>
                       <p className="text-[11px] text-[#FF9D00] font-medium mt-1">
-                        Contraste no checkout: {plan.systemCycleLabel}
+                        {plan.systemCycleLabel}
                       </p>
                     </div>
 

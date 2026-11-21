@@ -49,3 +49,11 @@ Segredos permanecem em `/opt/barberpro/shared/app.env`; nunca versionar esse arq
 Rollback: preservar release anterior e trocar apenas o symlink/serviço BarberPro. Migrations destrutivas ou restauração de banco exigem plano próprio; não reverter schema automaticamente. Nunca usar `pm2 restart all`, `docker compose down` de diretório alheio ou restart do cluster PostgreSQL.
 
 O preview está ativo. Não há proprietário bootstrapado, credenciais SMTP/WhatsApp ou dados de clientes; não usar como operação comercial. Antes de abrir para clientes, completar as pendências do status de produção e corrigir o harness que atualmente falha em 21 imports.
+
+## Atualização de planos, identidade visual e painel do salão (20/11/2026)
+
+A atualização adiciona quatro migrations: catálogo de planos, padronização de preços atuais, logomarca e painel/perfil. O histórico de pagamentos mantém os valores efetivamente pagos. Os painéis públicos começam desativados para todas as empresas.
+
+Após atualizar, o administrador ativa a tela em **Painel do Salão** ou **Configurações → Painel do Salão**. O link permite apenas consulta, mostra nomes abreviados e pode ser revogado/renovado pelo administrador. Profissionais continuam sendo apenas cadastros, sem novas contas de acesso.
+
+Logomarcas e fotos de perfil usam `UPLOAD_DIR/company-logos` e `UPLOAD_DIR/profile-avatars`. O `UPLOAD_DIR` absoluto já configurado em `/opt/barberpro/shared/app.env` deve ser preservado entre releases; o serviço tem escrita somente no diretório compartilhado e no cache da release. Em desenvolvimento, sem `UPLOAD_DIR` absoluto, os arquivos ficam em `storage/`.

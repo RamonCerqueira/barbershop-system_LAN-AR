@@ -1,5 +1,8 @@
 'use client'
 
+import type { Plan } from '@prisma/client'
+import { SUBSCRIPTION_PLANS, isAvailablePlan } from '@/lib/plans'
+
 import React, { useCallback, useEffect, useState } from 'react'
 import {
   Check,
@@ -27,9 +30,11 @@ import {
 } from '@/components/ui/SaasUI'
 
 interface PlanOption {
-  code: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+  code: Plan
   name: string
   price: number
+  basePrice: number
+  discountPercent: number
   durationDays: number
   periodLabel: string
   description: string
@@ -37,7 +42,7 @@ interface PlanOption {
 
 interface PaymentRecord {
   id: string
-  plan: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+  plan: Plan
   amount: number
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   pixKey: string
@@ -64,7 +69,7 @@ interface SubscriptionPayload {
     expiresAt: string
     trialEndsAt: string
     currentPeriodEnd: string | null
-    plan: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL'
+    plan: Plan
     planName: string
     planPrice: number
     warningLevel: 'none' | 'info' | 'warning' | 'danger'
@@ -83,7 +88,7 @@ interface SubscriptionPayload {
 export default function AssinaturaPage() {
   const [data, setData] = useState<SubscriptionPayload | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'QUARTERLY' | 'ANNUAL'>('MONTHLY')
+  const [selectedPlan, setSelectedPlan] = useState<Plan>('MONTHLY')
   const [payerNote, setPayerNote] = useState('')
   const [proofFile, setProofFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -98,7 +103,7 @@ export default function AssinaturaPage() {
       if (res.ok) {
         const json: SubscriptionPayload = await res.json()
         setData(json)
-        setSelectedPlan(json.subscription.plan)
+        setSelectedPlan(isAvailablePlan(json.subscription.plan) ? json.subscription.plan : 'MONTHLY')
       }
     } catch (err) {
       console.error('Erro ao carregar assinatura:', err)
@@ -190,8 +195,10 @@ export default function AssinaturaPage() {
   }
 
   const { subscription, pix, plans, payments } = data
-  const activePlanObj = plans.find((p) => p.code === selectedPlan) || plans[0]
   const pendingPayment = payments.find((p) => p.status === 'PENDING')
+  const activePlanObj = pendingPayment
+    ? { ...SUBSCRIPTION_PLANS[pendingPayment.plan], basePrice: SUBSCRIPTION_PLANS[pendingPayment.plan].price, discountPercent: 0 }
+    : plans.find((p) => p.code === selectedPlan) || plans[0]
   const trialProgress = subscription.isTrial
     ? Math.min(100, Math.max(8, Math.round(((7 - subscription.daysRemaining) / 7) * 100)))
     : 100
@@ -358,7 +365,8 @@ export default function AssinaturaPage() {
                   <div className="mt-1 flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
                     <span className="text-xs text-slate-300">Valor a pagar:</span>
                     <span className="text-lg font-extrabold text-[#f5b51b]">
-                      {formatCurrencyBRL(activePlanObj.price)}
+                      {formatCurrencyBRL(pendingPayment ? pendingPayment.amount : activePlanObj.price)}
+                      {activePlanObj.discountPercent > 0 && !pendingPayment && <span className="block text-xs">10% de desconto no upgrade (de {formatCurrencyBRL(activePlanObj.basePrice)})</span>}
                     </span>
                   </div>
                 </div>
@@ -375,6 +383,7 @@ export default function AssinaturaPage() {
                 />
               ) : (
                 <>
+                  <p className="text-xs text-slate-400">Upgrades para seis ou doze meses têm 10% de desconto na contratação. Renovações seguem o preço de tabela.</p>
                   <SaasField label="Escolha o Plano" required htmlFor="pix-plan">
                     <select
                       id="pix-plan"
@@ -384,7 +393,7 @@ export default function AssinaturaPage() {
                     >
                       {plans.map((p) => (
                         <option key={p.code} value={p.code}>
-                          {p.name} — {formatCurrencyBRL(p.price)} / {p.periodLabel}
+                          {p.name} — {formatCurrencyBRL(p.price)}{p.discountPercent ? " (10% de desconto)" : ""}
                         </option>
                       ))}
                     </select>
@@ -474,7 +483,7 @@ export default function AssinaturaPage() {
                   <tr key={p.id} className="hover:bg-white/[0.02]">
                     <td className="py-3.5 pr-4 text-slate-300">{formatBr(p.submittedAt)}</td>
                     <td className="py-3.5 pr-4 font-medium text-white">
-                      {plans.find((pl) => pl.code === p.plan)?.name || p.plan}
+                      {SUBSCRIPTION_PLANS[p.plan]?.name || p.plan}
                     </td>
                     <td className="py-3.5 pr-4 font-semibold text-[#f5b51b]">
                       {formatCurrencyBRL(p.amount)}

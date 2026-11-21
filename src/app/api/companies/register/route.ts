@@ -1,3 +1,4 @@
+import { isAvailablePlan } from '@/lib/plans'
 import { jsonResponse } from '@/lib/json'
 import { companyInput } from '@/lib/validation'
 import { rateLimit } from '@/lib/rate-limit'
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(plan)) {
+    if (!isAvailablePlan(plan)) {
       return jsonResponse(
         { error: 'Plano inválido' },
         { status: 400 }

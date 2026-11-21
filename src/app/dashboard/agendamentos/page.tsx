@@ -1,5 +1,8 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Calendar,
@@ -12,7 +15,8 @@ import {
   Phone,
   Edit,
   Trash2,
-  CalendarDays
+  CalendarDays,
+  Monitor
 } from 'lucide-react'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
@@ -344,7 +348,8 @@ export default function Agendamentos() {
             </select>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/dashboard/painel" className="inline-flex items-center rounded-lg border border-amber-400/15 bg-amber-400/5 px-4 py-2 text-sm text-amber-300"><Monitor size={17} className="mr-2" />Painel do Salão</Link>
             <Link
               href="/dashboard/agendamentos-calendario"
               className="inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors"
@@ -521,18 +526,14 @@ export default function Agendamentos() {
 
       {/* Modal Novo/Editar Agendamento */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {editingApt ? 'Editar Agendamento' : 'Novo Agendamento'}
-            </h3>
+        <SaasModal title={<>{editingApt ? 'Editar Agendamento' : 'Novo Agendamento'}</>} description="Organize o atendimento e confirme os detalhes da reserva." icon="calendar" onClose={() => setShowModal(false)}>
 
             <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-agendamentos-1" className="block text-sm text-gray-300 mb-1">
                   Cliente Cadastrado
-                </label>
-                <select
+                </SaasFieldLabel>
+                <select id="modal-agendamentos-1"
                   value={formData.clientId}
                   onChange={(e) =>
                     setFormData({ ...formData, clientId: e.target.value })
@@ -551,10 +552,10 @@ export default function Agendamentos() {
               {!formData.clientId && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-gray-900/60 border border-gray-700 rounded-lg">
                   <div>
-                    <label className="block text-xs text-gray-400 mb-1">
+                    <SaasFieldLabel htmlFor="modal-agendamentos-2" className="block text-xs text-gray-400 mb-1">
                       Nome do Cliente *
-                    </label>
-                    <input
+                    </SaasFieldLabel>
+                    <input id="modal-agendamentos-2"
                       type="text"
                       required={!formData.clientId}
                       value={formData.clientName}
@@ -565,10 +566,10 @@ export default function Agendamentos() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-400 mb-1">
+                    <SaasFieldLabel htmlFor="modal-agendamentos-3" className="block text-xs text-gray-400 mb-1">
                       Telefone / WhatsApp *
-                    </label>
-                    <input
+                    </SaasFieldLabel>
+                    <input id="modal-agendamentos-3"
                       type="text"
                       required={!formData.clientId}
                       value={formData.clientPhone}
@@ -583,8 +584,8 @@ export default function Agendamentos() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Serviço *</label>
-                  <select
+                  <SaasFieldLabel htmlFor="modal-agendamentos-4" className="block text-sm text-gray-300 mb-1">Serviço *</SaasFieldLabel>
+                  <select id="modal-agendamentos-4"
                     required
                     value={formData.serviceId}
                     onChange={(e) =>
@@ -602,10 +603,10 @@ export default function Agendamentos() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">
+                  <SaasFieldLabel htmlFor="modal-agendamentos-5" className="block text-sm text-gray-300 mb-1">
                     Profissional *
-                  </label>
-                  <select
+                  </SaasFieldLabel>
+                  <select id="modal-agendamentos-5"
                     required
                     value={formData.employeeId}
                     onChange={(e) =>
@@ -625,8 +626,8 @@ export default function Agendamentos() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Data *</label>
-                  <input
+                  <SaasFieldLabel htmlFor="modal-agendamentos-6" className="block text-sm text-gray-300 mb-1">Data *</SaasFieldLabel>
+                  <input id="modal-agendamentos-6"
                     type="date"
                     required
                     value={formData.date}
@@ -635,8 +636,8 @@ export default function Agendamentos() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Horário *</label>
-                  <input
+                  <SaasFieldLabel htmlFor="modal-agendamentos-7" className="block text-sm text-gray-300 mb-1">Horário *</SaasFieldLabel>
+                  <input id="modal-agendamentos-7"
                     type="time"
                     required
                     value={formData.time}
@@ -645,8 +646,8 @@ export default function Agendamentos() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Status</label>
-                  <select
+                  <SaasFieldLabel htmlFor="modal-agendamentos-8" className="block text-sm text-gray-300 mb-1">Status</SaasFieldLabel>
+                  <select id="modal-agendamentos-8"
                     value={formData.status}
                     onChange={(e) =>
                       setFormData({ ...formData, status: e.target.value })
@@ -668,8 +669,8 @@ export default function Agendamentos() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Observações</label>
-                <textarea
+                <SaasFieldLabel htmlFor="modal-agendamentos-9" className="block text-sm text-gray-300 mb-1">Observações</SaasFieldLabel>
+                <textarea id="modal-agendamentos-9"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   rows={2}
@@ -677,7 +678,7 @@ export default function Agendamentos() {
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 saas-modal-actions">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -694,8 +695,7 @@ export default function Agendamentos() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

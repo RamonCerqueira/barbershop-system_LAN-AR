@@ -1,5 +1,8 @@
 'use client'
 
+import { SaasField } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   TrendingUp,
@@ -316,19 +319,7 @@ export default function AnaliseServicos() {
 
       {/* Modal Insumos do Serviço */}
       {showCostModal && selectedService && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">
-                Custos de Insumos — {selectedService.name}
-              </h3>
-              <button
-                onClick={() => setShowCostModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
+        <SaasModal title={<>Custos de Insumos — {selectedService.name}</>} description="Acompanhe os insumos e a rentabilidade de cada serviço." icon="finance" onClose={() => setShowCostModal(false)}>
 
             {selectedService.costs.length > 0 && (
               <div className="space-y-2 mb-6 max-h-48 overflow-y-auto">
@@ -363,15 +354,15 @@ export default function AnaliseServicos() {
 
             <div className="space-y-3 border-t border-gray-700 pt-4">
               <h4 className="text-sm font-medium text-gray-300">Adicionar Novo Insumo</h4>
-              <input
+              <SaasField label="Nome do item (Ex: Lâmina, Shampoo, Pomada)" htmlFor="modal-analise-servicos-1"><input id="modal-analise-servicos-1"
                 type="text"
                 placeholder="Nome do item (Ex: Lâmina, Shampoo, Pomada)"
                 value={newCost.itemName}
                 onChange={(e) => setNewCost({ ...newCost, itemName: e.target.value })}
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
-              />
+              /></SaasField>
               <div className="grid grid-cols-2 gap-3">
-                <input
+                <SaasField label="Custo por uso (R$)" htmlFor="modal-analise-servicos-2"><input id="modal-analise-servicos-2"
                   type="number"
                   step="0.01"
                   placeholder="Custo por uso (R$)"
@@ -383,8 +374,8 @@ export default function AnaliseServicos() {
                     })
                   }
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
-                />
-                <select
+                /></SaasField>
+                <SaasField label="ml" htmlFor="modal-analise-servicos-3"><select id="modal-analise-servicos-3"
                   value={newCost.unit}
                   onChange={(e) => setNewCost({ ...newCost, unit: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
@@ -393,16 +384,16 @@ export default function AnaliseServicos() {
                   <option value="g">g</option>
                   <option value="unidade">Unidade</option>
                   <option value="aplicação">Aplicação</option>
-                </select>
+                </select></SaasField>
               </div>
-              <input
+              <SaasField label="Fornecedor (opcional)" htmlFor="modal-analise-servicos-4"><input id="modal-analise-servicos-4"
                 type="text"
                 placeholder="Fornecedor (opcional)"
                 value={newCost.supplier}
                 onChange={(e) => setNewCost({ ...newCost, supplier: e.target.value })}
                 className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm"
-              />
-              <div className="flex justify-end space-x-2 pt-2">
+              /></SaasField>
+              <div className="flex justify-end space-x-2 pt-2 saas-modal-actions">
                 <button
                   onClick={() => setShowCostModal(false)}
                   className="px-4 py-2 text-sm text-gray-400"
@@ -417,8 +408,7 @@ export default function AnaliseServicos() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

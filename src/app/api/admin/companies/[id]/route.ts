@@ -1,3 +1,4 @@
+import { SUBSCRIPTION_PLANS, isAvailablePlan } from '@/lib/plans'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -21,14 +22,12 @@ export async function PATCH(
       return jsonResponse({ error: 'Empresa não encontrada' }, { status: 404 })
     }
 
-    const planPrices: Record<string, number> = {
-      MONTHLY: 10.0,
-      QUARTERLY: 30.0,
-      ANNUAL: 120.0
+    if (body.plan !== undefined && body.plan !== existing.plan && !isAvailablePlan(body.plan)) {
+      return jsonResponse({ error: 'Plano inválido' }, { status: 400 })
     }
 
     const newPlan =
-      body.plan && ['MONTHLY', 'QUARTERLY', 'ANNUAL'].includes(body.plan)
+      body.plan && isAvailablePlan(body.plan)
         ? body.plan
         : existing.plan
 
@@ -43,12 +42,7 @@ export async function PATCH(
           email: newEmail,
           phone: body.phone !== undefined ? String(body.phone).trim() : existing.phone,
           plan: newPlan as any,
-          planPrice:
-            body.planPrice !== undefined
-              ? Number(body.planPrice)
-              : body.plan
-                ? planPrices[newPlan]
-                : existing.planPrice,
+          planPrice: SUBSCRIPTION_PLANS[newPlan as keyof typeof SUBSCRIPTION_PLANS].price,
           isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive
         }
       })

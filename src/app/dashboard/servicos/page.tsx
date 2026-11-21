@@ -1,5 +1,8 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Scissors,
@@ -336,18 +339,14 @@ export default function Servicos() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {editingService ? 'Editar Serviço' : 'Novo Serviço'}
-            </h3>
+        <SaasModal title={<>{editingService ? 'Editar Serviço' : 'Novo Serviço'}</>} description="Defina os detalhes do serviço que seus clientes vão reservar." icon="service" onClose={handleCloseModal}>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-servicos-1" className="block text-sm font-medium text-gray-300 mb-1">
                   Nome do Serviço *
-                </label>
-                <input
+                </SaasFieldLabel>
+                <input id="modal-servicos-1"
                   type="text"
                   required
                   value={formData.name}
@@ -358,10 +357,10 @@ export default function Servicos() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-servicos-2" className="block text-sm font-medium text-gray-300 mb-1">
                   Categoria
-                </label>
-                <select
+                </SaasFieldLabel>
+                <select id="modal-servicos-2"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -375,10 +374,10 @@ export default function Servicos() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-servicos-3" className="block text-sm font-medium text-gray-300 mb-1">
                   Descrição
-                </label>
-                <textarea
+                </SaasFieldLabel>
+                <textarea id="modal-servicos-3"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
@@ -391,10 +390,10 @@ export default function Servicos() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <SaasFieldLabel htmlFor="modal-servicos-4" className="block text-sm font-medium text-gray-300 mb-1">
                     Preço (R$) *
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-servicos-4"
                     type="number"
                     step="0.01"
                     min="0"
@@ -407,10 +406,10 @@ export default function Servicos() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                  <SaasFieldLabel htmlFor="modal-servicos-5" className="block text-sm font-medium text-gray-300 mb-1">
                     Duração (min) *
-                  </label>
-                  <input
+                  </SaasFieldLabel>
+                  <input id="modal-servicos-5"
                     type="number"
                     min="5"
                     required
@@ -434,12 +433,12 @@ export default function Servicos() {
                   }
                   className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-600 rounded"
                 />
-                <label htmlFor="isActive" className="ml-2 block text-sm text-gray-300">
+                <SaasFieldLabel htmlFor="isActive" className="ml-2 block text-sm text-gray-300">
                   Serviço ativo para agendamento
-                </label>
+                </SaasFieldLabel>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 saas-modal-actions">
                 <button
                   type="button"
                   onClick={handleCloseModal}
@@ -456,8 +455,7 @@ export default function Servicos() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

@@ -1,0 +1,6 @@
+-- Current contract prices follow the catalog; payment history remains immutable.
+UPDATE "companies" SET "planPrice" = CASE "plan"::text
+  WHEN 'MONTHLY' THEN 19 WHEN 'SEMIANNUAL' THEN 100 WHEN 'ANNUAL' THEN 190
+  WHEN 'PRO_MONTHLY' THEN 39 WHEN 'PRO_SEMIANNUAL' THEN 210 WHEN 'PRO_ANNUAL' THEN 420
+  WHEN 'ELITE_MONTHLY' THEN 59 WHEN 'ELITE_SEMIANNUAL' THEN 330 WHEN 'ELITE_ANNUAL' THEN 680
+  ELSE "planPrice" END;

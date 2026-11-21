@@ -1,5 +1,8 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Package,
@@ -350,15 +353,11 @@ export default function Produtos() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {editingProduct ? 'Editar Produto' : 'Novo Produto'}
-            </h3>
+        <SaasModal title={<>{editingProduct ? 'Editar Produto' : 'Novo Produto'}</>} description="Organize seu estoque e as informações de cada produto." icon="product" onClose={() => setShowModal(false)}>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Nome do Produto *</label>
-                <input
+                <SaasFieldLabel htmlFor="modal-produtos-1" className="block text-sm text-gray-300 mb-1">Nome do Produto *</SaasFieldLabel>
+                <input id="modal-produtos-1"
                   type="text"
                   required
                   value={formData.name}
@@ -368,8 +367,8 @@ export default function Produtos() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Categoria *</label>
-                <select
+                <SaasFieldLabel htmlFor="modal-produtos-2" className="block text-sm text-gray-300 mb-1">Categoria *</SaasFieldLabel>
+                <select id="modal-produtos-2"
                   value={formData.category}
                   onChange={(e) =>
                     setFormData({
@@ -388,8 +387,8 @@ export default function Produtos() {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Descrição</label>
-                <textarea
+                <SaasFieldLabel htmlFor="modal-produtos-3" className="block text-sm text-gray-300 mb-1">Descrição</SaasFieldLabel>
+                <textarea id="modal-produtos-3"
                   value={formData.description}
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
@@ -401,8 +400,8 @@ export default function Produtos() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Preço (R$) *</label>
-                  <input
+                  <SaasFieldLabel htmlFor="modal-produtos-4" className="block text-sm text-gray-300 mb-1">Preço (R$) *</SaasFieldLabel>
+                  <input id="modal-produtos-4"
                     type="number"
                     step="0.01"
                     min="0"
@@ -413,8 +412,8 @@ export default function Produtos() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Estoque *</label>
-                  <input
+                  <SaasFieldLabel htmlFor="modal-produtos-5" className="block text-sm text-gray-300 mb-1">Estoque *</SaasFieldLabel>
+                  <input id="modal-produtos-5"
                     type="number"
                     min="0"
                     required
@@ -424,8 +423,8 @@ export default function Produtos() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Mínimo *</label>
-                  <input
+                  <SaasFieldLabel htmlFor="modal-produtos-6" className="block text-sm text-gray-300 mb-1">Mínimo *</SaasFieldLabel>
+                  <input id="modal-produtos-6"
                     type="number"
                     min="0"
                     required
@@ -438,7 +437,7 @@ export default function Produtos() {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-4 saas-modal-actions">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -454,8 +453,7 @@ export default function Produtos() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

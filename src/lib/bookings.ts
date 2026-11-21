@@ -123,6 +123,11 @@ export async function updateBooking(id: string, companyId: string, input: unknow
       assertAvailable(date,time,duration,settings as unknown as BookingSettings,occupied)
       await assertNoEmployeeBlock(tx, companyId, employeeId, date, time, duration)
     }
+    if (nextStatus === 'IN_PROGRESS' && current.status !== 'IN_PROGRESS') {
+      await lock(tx, companyId, employeeId, 'in-progress')
+      const ongoing = await tx.appointment.findFirst({ where: { companyId, employeeId, status: 'IN_PROGRESS', id: { not: id } }, select: { id: true } })
+      if (ongoing) throw new HttpError(409, 'Este profissional já está em atendimento. Conclua o atendimento atual antes de iniciar o próximo.')
+    }
     const updated = await tx.appointment.update({ where: { id }, data: { date: new Date(`${date}T12:00:00Z`), time, employeeId, serviceId: data.serviceId, clientId: data.clientId, notes: data.notes, status: nextStatus, duration, price }, include: appointmentInclude })
     if (nextStatus === 'COMPLETED' && current.status !== 'COMPLETED') await tx.client.update({ where: { id: current.clientId }, data: { totalVisits: { increment: 1 } } })
     return updated

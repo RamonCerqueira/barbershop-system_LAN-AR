@@ -1,0 +1,8 @@
+-- Preserve os códigos e pagamentos históricos; novos contratos usam o catálogo atual.
+ALTER TYPE "public"."Plan" ADD VALUE IF NOT EXISTS 'SEMIANNUAL';
+ALTER TYPE "public"."Plan" ADD VALUE IF NOT EXISTS 'PRO_MONTHLY';
+ALTER TYPE "public"."Plan" ADD VALUE IF NOT EXISTS 'PRO_SEMIANNUAL';
+ALTER TYPE "public"."Plan" ADD VALUE IF NOT EXISTS 'PRO_ANNUAL';
+ALTER TYPE "public"."Plan" ADD VALUE IF NOT EXISTS 'ELITE_MONTHLY';
+ALTER TYPE "public"."Plan" ADD VALUE IF NOT EXISTS 'ELITE_SEMIANNUAL';
+ALTER TYPE "public"."Plan" ADD VALUE IF NOT EXISTS 'ELITE_ANNUAL';

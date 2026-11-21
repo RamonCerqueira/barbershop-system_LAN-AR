@@ -1,5 +1,6 @@
 'use client';
 
+import { PLAN_CODES, AVAILABLE_PLANS, isAvailablePlan, type PlanCode } from '@/lib/plans';
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,7 +8,6 @@ import { z } from 'zod';
 import { ArrowLeft, Check, CreditCard, Building, User } from 'lucide-react';
 import Link from 'next/link';
 import { trackConversionEvent } from '@/lib/landing-utils';
-import { formatCEP, formatCPF, formatPhone } from '@/lib/masks';
 import { passwordInput, validCpf } from '@/lib/validation';
 
 // Schema de validação com Zod
@@ -63,7 +63,7 @@ const contractSchema = z.object({
     .refine((val) => /^\d{10,15}$/.test(val.replace(/\D/g, '')), 'Telefone inválido (informe DDD + número)'),
 
   // Plano selecionado
-  plan: z.enum(['monthly', 'quarterly', 'annual']),
+  plan: z.enum(PLAN_CODES),
 
   // Termos
   acceptTerms: z.boolean().refine(val => val === true, {
@@ -76,15 +76,11 @@ const contractSchema = z.object({
 
 type ContractFormData = z.infer<typeof contractSchema>;
 
-const plans = {
-  monthly: { name: 'Mensal', price: 10, period: 'mês' },
-  quarterly: { name: 'Trimestral', price: 30, period: 'trimestre' },
-  annual: { name: 'Anual', price: 120, period: 'ano' },
-};
+const plans = Object.fromEntries(AVAILABLE_PLANS.map(plan => [plan.code, plan])) as Record<PlanCode, typeof AVAILABLE_PLANS[number]>;
 
 export default function ContractPage() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'quarterly' | 'annual'>('annual');
+  const [selectedPlan, setSelectedPlan] = useState<PlanCode>('MONTHLY');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
@@ -110,14 +106,14 @@ export default function ContractPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const planParam = params.get('plan');
-      if (planParam === 'monthly' || planParam === 'quarterly' || planParam === 'annual') {
+      const planParam = (params.get('plan') || 'MONTHLY').toUpperCase();
+      if (isAvailablePlan(planParam)) {
         setSelectedPlan(planParam);
         setValue('plan', planParam);
       }
       trackConversionEvent('signup_started', {
         section: 'contratar_page',
-        planId: planParam || 'annual',
+        planId: planParam || 'MONTHLY',
       });
     }
   }, [setValue]);

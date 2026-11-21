@@ -1,5 +1,8 @@
 'use client'
 
+import { SaasFieldLabel } from '@/components/ui/SaasUI'
+import { SaasModal } from '@/components/ui/SaasModal'
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   MessageSquare,
@@ -389,17 +392,13 @@ export default function CampanhasWhatsApp() {
 
       {/* Modal Criar/Editar Campanha */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-800 border border-gray-700 rounded-xl max-w-lg w-full p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              {editingCampaign ? 'Editar Campanha' : 'Nova Campanha WhatsApp'}
-            </h3>
+        <SaasModal title={<>{editingCampaign ? 'Editar Campanha' : 'Nova Campanha WhatsApp'}</>} description="Crie mensagens para aproximar seus clientes da barbearia." icon="campaign" onClose={() => setShowCreateModal(false)}>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-campanhas-whatsapp-1" className="block text-sm text-gray-300 mb-1">
                   Nome da Campanha *
-                </label>
-                <input
+                </SaasFieldLabel>
+                <input id="modal-campanhas-whatsapp-1"
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -408,10 +407,10 @@ export default function CampanhasWhatsApp() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-campanhas-whatsapp-2" className="block text-sm text-gray-300 mb-1">
                   Dias após último atendimento *
-                </label>
-                <input
+                </SaasFieldLabel>
+                <input id="modal-campanhas-whatsapp-2"
                   type="number"
                   min="1"
                   value={formData.triggerDays}
@@ -425,10 +424,10 @@ export default function CampanhasWhatsApp() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">
+                <SaasFieldLabel htmlFor="modal-campanhas-whatsapp-3" className="block text-sm text-gray-300 mb-1">
                   Mensagem (use {'{nome}'}, {'{dias}'}, {'{barbearia}'}) *
-                </label>
-                <textarea
+                </SaasFieldLabel>
+                <textarea id="modal-campanhas-whatsapp-3"
                   rows={4}
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -436,7 +435,7 @@ export default function CampanhasWhatsApp() {
                 />
               </div>
             </div>
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="flex justify-end space-x-3 mt-6 saas-modal-actions">
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 text-gray-400"
@@ -450,8 +449,7 @@ export default function CampanhasWhatsApp() {
                 Salvar Campanha
               </button>
             </div>
-          </div>
-        </div>
+          </SaasModal>
       )}
     </div>
   )

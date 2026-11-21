@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -20,11 +20,12 @@ import {
   LogOut,
   UserRound,
   ChevronDown,
-  Crown,
   Package,
   CreditCard,
   Lock,
-  CalendarOff
+  CalendarOff,
+  Monitor,
+  ShieldCheck
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { apiFetch } from '@/lib/api'
@@ -43,10 +44,13 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [showProfile, setShowProfile] = useState(false)
+  const profileRef = useRef<HTMLDivElement>(null)
+  const profileButtonRef = useRef<HTMLButtonElement>(null)
   const [showNotifications, setShowNotifications] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [userInfo, setUserInfo] = useState<{ name?: string; companyName?: string } | null>(null)
-  const [showMoreModules, setShowMoreModules] = useState(false)
+  const [userInfo, setUserInfo] = useState<{ name?: string; companyName?: string; email?: string; role?: string; avatarUrl?: string | null } | null>(null)
+  const [branding, setBranding] = useState<{ name: string; logoUrl: string | null } | null>(null)
   const [subscriptionInfo, setSubscriptionInfo] = useState<{
     effectiveStatus: string
     isTrial: boolean
@@ -60,10 +64,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const [notifRes, subRes] = await Promise.all([
+      const [notifRes, subRes, brandRes, meRes] = await Promise.all([
         apiFetch('/api/notifications'),
-        apiFetch('/api/subscription')
+        apiFetch('/api/subscription'),
+        apiFetch('/api/settings/branding'),
+        apiFetch('/api/auth/me')
       ])
+      if (meRes.ok) {
+        const account = await meRes.json()
+        setUserInfo(account.user)
+        localStorage.setItem('user', JSON.stringify(account.user))
+      }
+      if (brandRes.ok) setBranding(await brandRes.json())
       if (notifRes.ok) {
         const data = await notifRes.json()
         setNotifications(Array.isArray(data) ? data : [])
@@ -95,7 +107,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     setIsSidebarOpen(false)
+    setShowProfile(false)
   }, [pathname])
+
+  useEffect(() => {
+    const refreshBranding = () => { void loadNotifications() }
+    window.addEventListener('company-branding-updated', refreshBranding)
+    window.addEventListener('profile-updated', refreshBranding)
+    return () => {
+      window.removeEventListener('company-branding-updated', refreshBranding)
+      window.removeEventListener('profile-updated', refreshBranding)
+    }
+  }, [loadNotifications])
+
+  useEffect(() => {
+    if (!showProfile) return
+    const outside = (event: PointerEvent) => { if (!profileRef.current?.contains(event.target as Node)) setShowProfile(false) }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setShowProfile(false); profileButtonRef.current?.focus() } }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape) }
+  }, [showProfile])
 
   const unreadNotificationsCount = notifications.filter((n) => !n.isRead).length
 
@@ -150,6 +182,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, exact: false }
   ]
   const moreItems = [
+    { href: '/dashboard/painel', label: 'Painel do Salão', icon: Monitor },
     { href: '/dashboard/agendamentos-calendario', label: 'Calendário', icon: CalendarDays },
     { href: '/dashboard/bloqueios', label: 'Bloqueios & Folgas', icon: CalendarOff },
     { href: '/dashboard/comissoes', label: 'Comissões', icon: DollarSign },
@@ -158,7 +191,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/dashboard/campanhas-whatsapp', label: 'Campanhas WhatsApp', icon: MessageSquare }
   ]
   const isDashboardHome = pathname === '/dashboard'
-  const isMoreRoute = moreItems.some((item) => pathname.startsWith(item.href))
   const displayName = userInfo?.name?.trim().split(/\s+/)[0] || 'Admin'
   const today = new Date()
 
@@ -177,12 +209,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         className={`dashboard-sidebar fixed inset-y-0 left-0 z-50 w-[252px] shrink-0 flex flex-col transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } md:translate-x-0 transition-transform duration-200 ease-in-out`}
       >
-        <div className="dashboard-brand flex h-[210px] shrink-0 items-center justify-center border-b">
-          <Link href="/dashboard" className="dashboard-brand-lockup" aria-label="BarberPro, início">
-            <span className="dashboard-brand-mark"><Scissors size={31} /></span>
+        <div className="dashboard-brand flex shrink-0 items-center justify-center border-b">
+          <Link href="/dashboard" className="dashboard-brand-lockup" aria-label={`${branding?.name || userInfo?.companyName || 'Sua barbearia'}, início`}>
+            {branding?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Authenticated logo endpoint; preserve original proportions.
+              <img src={branding.logoUrl} alt={`Logomarca ${branding.name}`} className="dashboard-company-logo" />
+            ) : <span className="dashboard-brand-mark"><Scissors size={25} /></span>}
+            <span className="dashboard-brand-company">{branding?.name || userInfo?.companyName || 'Sua barbearia'}</span>
             <span className="dashboard-brand-name">BARBER<span>PRO</span></span>
-            <span className="dashboard-brand-tagline">GESTÃO INTELIGENTE</span>
-            {userInfo?.companyName && <span className="dashboard-brand-company">{userInfo.companyName}</span>}
           </Link>
           <button
             type="button"
@@ -194,10 +228,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </button>
         </div>
 
-        <nav className="dashboard-nav mt-[10px] flex-1 overflow-y-auto px-3" aria-label="Navegação principal">
-          <p className="px-3 pb-2 pt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Menu principal</p>
-          <ul className="space-y-1">
-            {navItems.map((item) => {
+        <nav className="dashboard-nav min-h-0 flex-1 overflow-y-auto px-3" aria-label="Navegação principal">
+          <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Menu principal</p>
+          <ul className="dashboard-nav-list">
+            {[...navItems.slice(0, -1), ...moreItems.map(item => ({ ...item, exact: true })), ...(userInfo?.role === 'ADMIN' ? [navItems[navItems.length - 1]] : [])].map((item) => {
               const Icon = item.icon
               const isActive = item.exact
                 ? pathname === item.href
@@ -208,13 +242,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Link
                     href={item.href}
                     aria-current={isActive ? 'page' : undefined}
-                    className={`dashboard-nav-link group flex h-[51px] items-center rounded-[11px] px-3.5 text-[15px] transition-all duration-200 ${isActive
+                    className={`dashboard-nav-link group flex items-center rounded-[11px] px-3.5 transition-all duration-200 ${isActive
                       ? 'dashboard-nav-active text-white font-semibold'
                       : 'text-slate-400 hover:text-white'
                       }`}
                   >
                     <span className="dashboard-nav-icon mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors">
-                      <Icon size={21} />
+                      <Icon size={19} />
                     </span>
                     {item.label}
                   </Link>
@@ -222,20 +256,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               )
             })}
           </ul>
-          <button type="button" className="dashboard-more-toggle" onClick={() => setShowMoreModules((open) => !open)} aria-expanded={showMoreModules || isMoreRoute}>
-            <span>Mais módulos</span><ChevronDown size={15} className={showMoreModules || isMoreRoute ? 'rotate-180' : ''} />
-          </button>
-          {(showMoreModules || isMoreRoute) && <ul className="dashboard-more-list">
-            {moreItems.map((item) => {
-              const Icon = item.icon
-              const active = pathname.startsWith(item.href)
-              return <li key={item.href}><Link href={item.href} className={`dashboard-nav-link dashboard-more-link ${active ? 'dashboard-nav-active text-white font-semibold' : 'text-slate-400 hover:text-white'}`}><span className="dashboard-nav-icon"><Icon size={19} /></span>{item.label}</Link></li>
-            })}
-          </ul>}
         </nav>
 
         <div className="dashboard-sidebar-footer">
-          <div className="dashboard-sidebar-promo"><Crown size={29} /><strong>Clientes satisfeitos<br />voltam sempre!</strong></div>
           <button
             onClick={handleLogout}
             className="flex w-full items-center rounded-xl px-3.5 py-3 text-sm text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-300"
@@ -259,7 +282,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Menu size={24} />
             </button>
             <div>
-              {isDashboardHome ? <><h2 className="dashboard-welcome-title">Bem-vindo(a), {displayName}!</h2><p className="dashboard-welcome-subtitle">Aqui está o resumo do seu dia na barbearia.</p></> : <><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Painel de gestão</p><h2 className="max-w-[44vw] truncate text-sm font-semibold text-white sm:max-w-none sm:text-base">{userInfo?.companyName || 'BarberPro'}</h2></>}
+              {isDashboardHome ? <><h2 className="dashboard-welcome-title">Bem-vindo(a), {displayName}!</h2><p className="dashboard-welcome-subtitle">Aqui está o resumo do seu dia na barbearia.</p></> : <><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Painel de gestão</p><h2 className="max-w-[44vw] truncate text-sm font-semibold text-white sm:max-w-none sm:text-base">{branding?.name || userInfo?.companyName || 'BarberPro'}</h2></>}
             </div>
           </div>
 
@@ -269,17 +292,25 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <span>{isDashboardHome ? format(today, 'dd/MM/yyyy') : format(today, 'dd MMM yyyy')}{isDashboardHome && <small>{new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(today)}</small>}</span>
             </div>
             {userInfo?.name && (
-              <div className={`items-center gap-2.5 border-l border-white/10 pl-4 ${isDashboardHome ? 'dashboard-profile' : 'hidden sm:flex'}`}>
-                <span className="dashboard-profile-avatar">
-                  {userInfo.name.trim().charAt(0).toUpperCase()}
-                </span>
-                <span className="max-w-36 truncate text-sm font-medium text-slate-200">{userInfo.name}</span>
-                {isDashboardHome && <ChevronDown size={15} className="text-slate-400" />}
+              <div className="account-menu" ref={profileRef}>
+                <button type="button" ref={profileButtonRef} className="account-trigger" onClick={() => { setShowProfile(open => !open); setShowNotifications(false) }} aria-expanded={showProfile} aria-controls="account-options" aria-label={`Conta de ${userInfo.name}`}>
+                  <span className="account-avatar">{userInfo.avatarUrl ? <img src={userInfo.avatarUrl} alt="" /> : userInfo.name.trim().split(/\s+/).filter((_, index, names) => index === 0 || index === names.length - 1).map(name => name.charAt(0)).join('').toUpperCase() /* eslint-disable-line @next/next/no-img-element */}</span>
+                  <span className="account-trigger-text"><strong>{userInfo.name}</strong><small>{userInfo.role === 'ADMIN' ? 'Administrador' : 'Gestor autorizado'}</small></span>
+                  <ChevronDown size={15} className={showProfile ? 'rotate-180 text-amber-300' : 'text-slate-500'} />
+                </button>
+                {showProfile && <nav id="account-options" className="account-dropdown" aria-label="Opções da conta">
+                  <div className="account-dropdown-heading"><strong>{userInfo.name}</strong><span>{userInfo.email}</span><small><ShieldCheck size={12} />Conta administrativa</small></div>
+                  <Link href="/dashboard/perfil" onClick={() => setShowProfile(false)}><UserRound size={17} />Meu perfil</Link>
+                  <Link href="/dashboard/agendamentos" onClick={() => setShowProfile(false)}><CalendarDays size={17} />Agendamentos</Link>
+                  <Link href="/dashboard/painel" onClick={() => setShowProfile(false)}><Monitor size={17} />Painel do Salão</Link>
+                  {userInfo.role === 'ADMIN' && <Link href="/dashboard/configuracoes" onClick={() => setShowProfile(false)}><Settings size={17} />Configurações</Link>}
+                  <button type="button" onClick={handleLogout}><LogOut size={17} />Sair da conta</button>
+                </nav>}
               </div>
             )}
             <div className="relative">
               <button
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => { setShowNotifications(!showNotifications); setShowProfile(false) }}
                 aria-label={`Notificações${unreadNotificationsCount ? `, ${unreadNotificationsCount} não lidas` : ''}`}
                 aria-expanded={showNotifications}
                 className="relative rounded-xl p-2.5 text-slate-400 transition hover:bg-white/5 hover:text-white"
