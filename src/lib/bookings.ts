@@ -104,6 +104,10 @@ export async function updateBooking(id: string, companyId: string, input: unknow
     if (!current) throw new HttpError(404, 'Agendamento não encontrado.')
     if (customerAccountId) {
       if (current.customerAccountId !== customerAccountId) throw new HttpError(404, 'Agendamento não encontrado.')
+      if (data.status !== 'CANCELLED') {
+        const company = await tx.company.findUnique({ where: { id: companyId } })
+        if (!company || !evaluateCompanySubscription(company).hasAccess) throw new HttpError(409, 'A barbearia está temporariamente indisponível para remarcações online. Entre em contato com ela.')
+      }
       const settings = await tx.companySettings.findUnique({ where: { companyId } })
       const config = (settings?.appointmentConfig || {}) as { cancellationDeadline?: number }
       const deadline = Math.max(2, Number(config.cancellationDeadline) || 2)

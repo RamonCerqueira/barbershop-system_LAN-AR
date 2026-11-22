@@ -197,6 +197,14 @@ async function main() {
     const photo=await db.companyPhoto.findFirst({where:{companyId:company.id}});
     try{assert.equal((await publicPhotos.GET(req('GET'),{params:Promise.resolve({id:'foreign',photoId:photo.id})})).status,404);assert.equal((await publicPhotos.GET(req('GET'),{params:Promise.resolve({id:company.id,photoId:photo.id})})).status,200);assert.equal((await gallery.DELETE(new NextRequest('http://localhost/api/settings/photos',{method:'DELETE',headers:{cookie:'barberpro_token='+adminToken,'content-type':'application/json'},body:JSON.stringify({id:photo.id})}))).status,200);assert.equal(fs.existsSync(logoFilePath(photo.filename,'gallery')),false)}finally{fs.rmSync(logoFilePath(photo.filename,'gallery'),{force:true})}
   });
+  await check('Unavailable shops cannot be rescheduled online while timely cancellation remains available',async()=>{
+    const reservation=await db.appointment.findFirst({where:{customerAccountId:customerA.id,status:'SCHEDULED',date:{gt:new Date(Date.now()+86400000)}}});
+    await db.company.update({where:{id:company.id},data:{subscriptionStatus:'SUSPENDED'}});
+    try {
+      assert.equal((await edit.PATCH(req('PATCH',{action:'RESCHEDULE',date,time:'16:00'},tokenA),{params:Promise.resolve({id:reservation.id})})).status,409);
+      assert.equal((await edit.PATCH(req('PATCH',{action:'CANCEL'},tokenA),{params:Promise.resolve({id:reservation.id})})).status,200);
+    } finally { await db.company.update({where:{id:company.id},data:{subscriptionStatus:'TRIAL'}}); }
+  });
   await check('Logout revokes customer session without creating barber access',async()=>{
     assert.equal((await account.DELETE(req('DELETE',null,tokenA))).status,200);assert.equal((await (await account.GET(req('GET',null,tokenA))).json()).customer,null);
     const user=await db.user.findFirst();assert.equal(user.role,'ADMIN');assert.equal(await db.user.count(),1);
