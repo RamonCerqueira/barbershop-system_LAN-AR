@@ -21,9 +21,9 @@ runuser -u postgres -- pg_dump -Fc --no-owner --no-acl "$database" > "$work/data
 tar -C "$root/shared" -czf "$work/uploads.tar.gz" uploads
 install -m 0600 "$root/shared/app.env" "$work/app.env"
 (cd "$work" && sha256sum database.dump uploads.tar.gz app.env > SHA256SUMS && sha256sum -c SHA256SUMS)
-runuser -u postgres -- createdb "$clone"
-runuser -u postgres -- pg_restore --exit-on-error --no-owner --no-acl -d "$clone" < "$work/database.dump"
-runuser -u postgres -- psql -d "$clone" -v ON_ERROR_STOP=1 -Atqc 'SELECT count(*) FROM companies; SELECT count(*) FROM appointments;' > "$work/restore-counts.txt"
+runuser -u postgres -- createdb --owner=app_barberpro "$clone"
+runuser -u postgres -- pg_restore --exit-on-error --no-owner --no-acl --role=app_barberpro -d "$clone" < "$work/database.dump"
+runuser -u postgres -- psql -d "$clone" -v ON_ERROR_STOP=1 -Atqc 'SET ROLE app_barberpro; SELECT count(*) FROM companies; SELECT count(*) FROM appointments;' > "$work/restore-counts.txt"
 mkdir "$work/restored-uploads"
 tar -xzf "$work/uploads.tar.gz" -C "$work/restored-uploads"
 tar -dzf "$work/uploads.tar.gz" -C "$work/restored-uploads"

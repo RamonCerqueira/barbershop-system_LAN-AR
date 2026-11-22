@@ -22,4 +22,6 @@ O worker `scripts/processCustomerOperations.cjs` processa prazos de PIX, lista e
 
 Destino privado: `/opt/barberpro/shared/backups/scheduled/YYYYMMDDTHHMMSSZ`. Inclui uma cópia privada do ambiente `app.env`, acessível somente ao root; nunca publicar ou anexar esse arquivo. Retenção: pelo menos 14 dias, removendo exclusivamente pastas verificadas nesse diretório. O teste de restauração nunca escreve no banco de produção. A cópia é local à VPS; cópia externa requer um destino adicional e ainda não está configurada.
 
+Na instalação/atualização da rotina, copiar `deploy/vps/backup-vps.sh` como root para `/opt/barberpro/shared/backups/bin/backup-vps.sh`, com proprietário root e modo 0700. A unidade privilegiada usa essa cópia privada; a restauração de teste usa a role limitada `app_barberpro`.
+
 Para conferir: `systemctl status barberpro-backup.service`, `journalctl -u barberpro-backup.service`, `systemctl list-timers barberpro-backup.timer barberpro-operations.timer`. Para executar e verificar uma cópia manual: `systemctl start barberpro-backup.service`. Para recuperação real, preservar a versão atual, conferir `SHA256SUMS`, restaurar em uma base nova e extrair imagens em diretório novo, validar e só então apontar a aplicação para os dados restaurados. Não sobrescrever o banco ativo para testar.
