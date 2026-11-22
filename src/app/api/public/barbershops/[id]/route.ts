@@ -47,9 +47,8 @@ export async function GET(
     // Buscar agendamentos ocupados para a data selecionada (se informada)
     let bookedSlots: { time: string; employeeId: string; duration: number }[] = []
     if (dateParam) {
-      const [y, m, d] = dateParam.split('-').map(Number)
-      const startOfDay = new Date(y, m - 1, d, 0, 0, 0, 0)
-      const endOfDay = new Date(y, m - 1, d, 23, 59, 59, 999)
+      const startOfDay = new Date(dateParam+'T00:00:00Z')
+      const endOfDay = new Date(dateParam+'T23:59:59.999Z')
 
       const [appointments, blocks] = await Promise.all([
         prisma.appointment.findMany({
@@ -156,6 +155,7 @@ export async function GET(
     return jsonResponse({
       id: company.id,
       logoUrl: company.logoPath ? `/api/public/barbershops/${company.id}/logo?v=${company.logoPath}` : null,
+      cutPhotos: (await prisma.appointmentPhoto.findMany({where:{publicationConsent:true,appointment:{companyId:company.id,status:'COMPLETED'}},select:{id:true},orderBy:{createdAt:'desc'},take:24})).map(p=>'/api/cut-photos/'+p.id),
       photos: company.photos.map(photo => `/api/public/barbershops/${company.id}/photos/${photo.id}`),
       bookingAvailable: evaluateCompanySubscription(company).hasAccess,
       advanceBookingDays: Math.max(1, Number(aptConfig.advanceBookingDays) || 30),

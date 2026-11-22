@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && path !== '/api/webhooks/whatsapp') {
       const expected = new URL(process.env.APP_URL || request.url).origin
       if (request.headers.get('origin') !== expected) return NextResponse.json({ error: 'Origem não autorizada' }, { status: 403 })
-      const bodyLimit = ['/api/settings/logo', '/api/settings/photos', '/api/profile/avatar', '/api/customer/avatar'].includes(path) ? 2 * 1024 * 1024 + 65536 : 2_000_000
+      const bodyLimit = ['/api/settings/logo', '/api/settings/photos', '/api/profile/avatar', '/api/customer/avatar', '/api/appointment-photos'].includes(path) ? 2 * 1024 * 1024 + 65536 : 2_000_000
       if (Number(request.headers.get('content-length') || 0) > bodyLimit) return NextResponse.json({ error: 'Requisição muito grande' }, { status: 413 })
     }
     const res = NextResponse.next()

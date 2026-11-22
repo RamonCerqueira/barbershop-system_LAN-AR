@@ -11,6 +11,7 @@ interface AppointmentDetails {
   date: string
   time: string
   status: string
+  depositAmount?: number
   price: number
   clientName: string
   serviceName: string
@@ -184,7 +185,7 @@ export default function ConfirmAppointmentPage() {
                                       <span>Pagamento PIX para Confirmar a Vaga</span>
                                     </div>
                                     <p className="text-amber-100">
-                                      Pague até <strong>{payHours} horas antes</strong> do seu horário. Caso não haja confirmação do pagamento pela barbearia até esse prazo, a vaga será cancelada automaticamente.
+                                      Sinal exigido: <strong>R$ {Number(appointment.depositAmount || appointment.price).toFixed(2)}</strong>, como parte do valor total. Pague até <strong>{payHours} horas antes</strong> do seu horário. Caso não haja confirmação do pagamento pela barbearia até esse prazo, a vaga será cancelada automaticamente.
                                     </p>
                                     <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/40 px-3 py-2">
                                       <div>
@@ -223,7 +224,7 @@ export default function ConfirmAppointmentPage() {
                                           <div className="space-y-3">
                                             {paymentNotified && (
                                               <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-center text-xs text-sky-200">
-                                                Aviso enviado! Aguarde o barbeiro confirmar o recebimento do PIX para liberar a vaga.
+                                                Aviso enviado! Aguarde a administração confirmar o recebimento do PIX para liberar a vaga.
                                               </div>
                                             )}
 

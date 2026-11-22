@@ -4,11 +4,11 @@ import crypto from 'node:crypto'
 import { HttpError } from './http'
 
 export const MAX_LOGO_BYTES = 2 * 1024 * 1024
-type ImageArea = 'company' | 'profile' | 'gallery' | 'customer'
+type ImageArea = 'company' | 'profile' | 'gallery' | 'customer' | 'cut'
 const storageRoot = process.env.UPLOAD_DIR && path.isAbsolute(process.env.UPLOAD_DIR)
   ? process.env.UPLOAD_DIR
   : path.join(process.cwd(), 'storage')
-const directory = (area: ImageArea) => path.join(storageRoot, { profile: 'profile-avatars', company: 'company-logos', gallery: 'company-gallery', customer: 'customer-avatars' }[area])
+const directory = (area: ImageArea) => path.join(storageRoot, { profile: 'profile-avatars', company: 'company-logos', gallery: 'company-gallery', customer: 'customer-avatars', cut: 'cut-photos' }[area])
 
 export function logoFilePath(filename: string, area: ImageArea = 'company') {
   if (!/^[a-f0-9]{32}\.(png|jpg|webp)$/.test(filename)) throw new HttpError(404, 'Logomarca não encontrada.')

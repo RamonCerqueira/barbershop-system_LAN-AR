@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const a = await authorized(request,(await params).id)
     const cfg = (a.company.settings?.appointmentConfig as Record<string, unknown>) || {}
-    const requirePrepayment = Boolean(cfg.requirePrepaymentToConfirm)
+    const requirePrepayment = Boolean(a.depositRequired || cfg.requirePrepaymentToConfirm)
     const paymentDeadlineHours = Number(cfg.paymentDeadlineHours ?? 2)
     const cancellationDeadline = Number(cfg.cancellationDeadline ?? 2)
     const pix = cfg.pixKey
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       time: a.time,
       status: a.status,
       price: a.price,
+      depositAmount: a.depositAmount,
       duration: a.duration,
       clientName: a.client.fullName,
       serviceName: a.service.name,
@@ -59,11 +60,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }).parse(await request.json())
 
     const cfg = (a.company.settings?.appointmentConfig as Record<string, unknown>) || {}
-    const requirePrepayment = Boolean(cfg.requirePrepaymentToConfirm)
+    const requirePrepayment = Boolean(a.depositRequired || cfg.requirePrepaymentToConfirm)
     const hours = Number(cfg.cancellationDeadline ?? 2)
     const instant = bookingInstant(a.date.toISOString().slice(0,10),a.time)
 
     if (body.notifyPayment) {
+      if (!requirePrepayment || !cfg.pixKey || instant.getTime()-Date.now() <= Math.max(1,Number(cfg.paymentDeadlineHours)||2)*3600000) throw new HttpError(409, 'Este atendimento não está disponível para aviso de PIX.')
       if (a.status !== 'SCHEDULED') throw new HttpError(409, 'Este agendamento não está aguardando pagamento.')
       await prisma.notification.create({
         data: {

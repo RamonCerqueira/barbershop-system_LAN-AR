@@ -66,6 +66,7 @@ model Company {
   subscriptionPayments        SubscriptionPayment[]
   subscriptionNotificationLogs SubscriptionNotificationLog[]
   employeeBlocks              EmployeeBlock[]
+  waitlist                    WaitlistEntry[]
 
   @@index([subscriptionStatus, trialEndsAt], map: "companies_sub_trial_idx")
   @@index([subscriptionStatus, currentPeriodEnd], map: "companies_sub_period_idx")
@@ -309,6 +310,7 @@ enum ProductCategory {
 
 // Modelo para clientes
 model Client {
+  requireDeposit Boolean @default(false)
   customerAccountId String?
   customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
   id          String    @id @default(cuid())
@@ -340,6 +342,9 @@ model Client {
 
 // Modelo para agendamentos
 model Appointment {
+  depositRequired Boolean @default(false)
+  depositAmount Decimal @db.Decimal(12, 2) @default(0)
+  photos AppointmentPhoto[]
   customerAccountId String?
   customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
   review CustomerReview?
@@ -551,6 +556,7 @@ model StockMovement {
 }
 
 model OutboundMessage {
+  customerAlertId String?
   id String @id @default(cuid())
   companyId String
   clientId String?
@@ -638,6 +644,10 @@ model EmployeeBlock {
 }
 
 model CustomerAccount {
+  reminderEmail Boolean @default(false)
+  reminderWhatsapp Boolean @default(false)
+  alerts CustomerAlert[]
+  waitlist WaitlistEntry[]
   id String @id @default(cuid())
   name String
   email String @unique
@@ -705,4 +715,56 @@ model CompanyPhoto {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   @@index([companyId])
   @@map("company_photos")
+}
+
+model CustomerAlert {
+  appointmentVersion String?
+  id String @id @default(cuid())
+  customerId String
+  companyId String
+  appointmentId String?
+  title String
+  message String
+  href String @default("/cliente/agendamentos")
+  dedupKey String @unique
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  emailStatus String @default("PENDING")
+  whatsappStatus String @default("PENDING")
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  @@index([customerId, createdAt])
+  @@index([emailStatus, createdAt])
+  @@map("customer_alerts")
+}
+
+model WaitlistEntry {
+  id String @id @default(cuid())
+  customerId String
+  companyId String
+  serviceId String
+  employeeId String
+  date String
+  time String
+  status String @default("WAITING")
+  offeredAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@unique([customerId, companyId, serviceId, employeeId, date, time])
+  @@index([status, date, createdAt])
+  @@index([companyId, employeeId, date, time, status])
+  @@map("waitlist_entries")
+}
+
+model AppointmentPhoto {
+  id String @id @default(cuid())
+  appointmentId String
+  filename String
+  publicationConsent Boolean @default(false)
+  consentAt DateTime?
+  createdAt DateTime @default(now())
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  @@index([appointmentId])
+  @@map("appointment_photos")
 }

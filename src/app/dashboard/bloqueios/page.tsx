@@ -44,6 +44,7 @@ export default function BloqueiosPage() {
   const [form, setForm] = useState({
     employeeId: '',
     date: todayStr(),
+    endDate: todayStr(),
     startTime: '08:00',
     endTime: '18:00',
     reason: ''
@@ -140,7 +141,7 @@ export default function BloqueiosPage() {
                 onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
                 className={saasInputClass}
               >
-                <option value="">Selecione...</option>
+                <option value="ALL">Todos — fechar a barbearia</option><option value="">Selecione...</option>
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.name}
@@ -155,7 +156,7 @@ export default function BloqueiosPage() {
                 type="date"
                 required
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                onChange={(e) => setForm({ ...form, date: e.target.value, endDate: form.endDate < e.target.value ? e.target.value : form.endDate })}
                 className={saasInputClass}
               />
             </SaasField>
@@ -183,6 +184,7 @@ export default function BloqueiosPage() {
               </SaasField>
             </div>
 
+            <SaasField label="Até a data (férias ou feriado)" htmlFor="blk-end-date"><input id="blk-end-date" type="date" required min={form.date} value={form.endDate} onChange={e=>setForm({...form,endDate:e.target.value})} className={saasInputClass}/></SaasField>
             <SaasField label="Motivo (opcional)" htmlFor="blk-reason">
               <input
                 id="blk-reason"

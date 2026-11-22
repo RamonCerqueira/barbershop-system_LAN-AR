@@ -33,6 +33,8 @@ interface Appointment {
   date: string
   time: string
   duration: number
+  depositRequired?: boolean
+  depositAmount?: number
   price: number
   status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
   notes: string
@@ -472,7 +474,7 @@ export default function Agendamentos() {
                       </p>
                       <p className="text-lg font-bold text-white">{appointment.time}</p>
                       <p className="text-sm font-semibold text-orange-400">
-                        R$ {appointment.price.toFixed(2)} ({appointment.duration} min)
+                        R$ {appointment.price.toFixed(2)} ({appointment.duration} min){appointment.depositRequired && <span className="block text-xs text-amber-400">Sinal exigido: R$ {(appointment.depositAmount || 0).toFixed(2)} · confira o PIX</span>}
                       </p>
                     </div>
 

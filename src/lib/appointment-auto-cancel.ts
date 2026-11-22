@@ -15,14 +15,14 @@ export async function processAppointmentPaymentDeadlines(companyIdFilter?: strin
 
   for (const company of companies) {
     const cfg = (company.settings?.appointmentConfig as Record<string, unknown>) || {}
-    if (!cfg.requirePrepaymentToConfirm) continue
 
     const deadlineHours = Math.max(1, Number(cfg.paymentDeadlineHours ?? 2))
 
     const pendingAppointments = await prisma.appointment.findMany({
       where: {
         companyId: company.id,
-        status: 'SCHEDULED'
+        status: 'SCHEDULED',
+        ...(cfg.requirePrepaymentToConfirm ? {} : { depositRequired: true })
       },
       include: {
         client: { select: { fullName: true, phone: true } },

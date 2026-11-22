@@ -184,6 +184,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const moreItems = [
     { href: '/dashboard/painel', label: 'Painel do Salão', icon: Monitor },
     { href: '/dashboard/agendamentos-calendario', label: 'Calendário', icon: CalendarDays },
+    { href: '/dashboard/operacao', label: 'Operação & Clientes', icon: Users },
     { href: '/dashboard/bloqueios', label: 'Bloqueios & Folgas', icon: CalendarOff },
     { href: '/dashboard/comissoes', label: 'Comissões', icon: DollarSign },
     { href: '/dashboard/colaboradores-especialidades', label: 'Especialidades', icon: Award },

@@ -10,7 +10,7 @@ function providerConfig() {
   if (url.protocol !== 'https:' || url.username || url.password || !allowed.includes(url.hostname)) throw new HttpError(503,'Configure o endereço HTTPS e a lista de hosts do provedor.')
   return { url: url.toString(), token: process.env.WHATSAPP_API_TOKEN }
 }
-export async function queueMessage(companyId: string, to: string, message: string, key: string, campaignId?: string, clientId?: string) {
+export async function queueMessage(companyId: string, to: string, message: string, key: string, campaignId?: string, clientId?: string, customerAlertId?: string) {
   providerConfig()
   const phone = phoneInput.parse(to)
   if (!message.trim() || message.length > 4000) throw new HttpError(400,'Mensagem inválida.')
@@ -18,7 +18,7 @@ export async function queueMessage(companyId: string, to: string, message: strin
   if (!company) throw new HttpError(404,'Empresa indisponível.')
   if (clientId && !await prisma.client.findFirst({where:{id:clientId,companyId,isActive:true,whatsappConsent:true}})) throw new HttpError(400,'Cliente sem consentimento para esta comunicação.')
   if (campaignId && !await prisma.whatsAppCampaign.findFirst({where:{id:campaignId,companyId,isActive:true}})) throw new HttpError(404,'Campanha indisponível.')
-  return prisma.outboundMessage.upsert({ where:{dedupKey:digest(companyId+':'+key)},update:{},create:{companyId,to:phone,message,clientId,campaignId,dedupKey:digest(companyId+':'+key)} })
+  return prisma.outboundMessage.upsert({ where:{dedupKey:digest(companyId+':'+key)},update:{},create:{companyId,to:phone,message,clientId,campaignId,customerAlertId,dedupKey:digest(companyId+':'+key)} })
 }
 
 export async function queueCampaign(id: string, companyId: string) {
@@ -46,6 +46,18 @@ export async function processMessages() {
   await prisma.outboundMessage.updateMany({where:{status:'SENDING',updatedAt:{lt:new Date(Date.now()-10*60_000)}},data:{status:'QUEUED'}})
   const pending=await prisma.outboundMessage.findMany({where:{status:'QUEUED',nextAttemptAt:{lte:new Date()}},orderBy:{createdAt:'asc'},take:50})
   for(const job of pending) {
+    if (job.customerAlertId) {
+      const alert = await prisma.customerAlert.findUnique({where:{id:job.customerAlertId},include:{customer:true}})
+      const company = await prisma.company.findUnique({where:{id:job.companyId},include:{settings:true}})
+      const config = (company?.settings?.notificationConfig || {}) as { customerRemindersEnabled?:boolean;customerWhatsappEnabled?:boolean }
+      let valid = Boolean(alert && alert.customer.reminderWhatsapp && alert.customer.phone === job.to && config.customerRemindersEnabled !== false && config.customerWhatsappEnabled && alert.whatsappStatus !== 'CANCELLED' && alert.createdAt.getTime() > Date.now()-86400000)
+      if (valid && alert?.appointmentId) {
+        const a = await prisma.appointment.findUnique({where:{id:alert.appointmentId}})
+        valid = Boolean(a && a.customerAccountId === alert.customerId && `${a.status}:${a.date.toISOString().slice(0,10)}:${a.time}` === alert.appointmentVersion)
+      }
+      if (valid && alert?.dedupKey.startsWith('waitlist:')) valid = Boolean(await prisma.waitlistEntry.findFirst({where:{id:alert.dedupKey.split(':')[1],customerId:alert.customerId,status:'OFFERED',expiresAt:{gt:new Date()}}}))
+      if (!valid) { await prisma.outboundMessage.update({where:{id:job.id},data:{status:'CANCELLED'}});continue }
+    }
     if(!await prisma.company.findFirst({where:{id:job.companyId,isActive:true}})) { await prisma.outboundMessage.update({where:{id:job.id},data:{status:'CANCELLED'}});continue }
     const claim=await prisma.outboundMessage.updateMany({where:{id:job.id,status:'QUEUED'},data:{status:'SENDING',attempts:{increment:1}}})
     if(!claim.count)continue

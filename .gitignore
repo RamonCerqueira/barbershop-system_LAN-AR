@@ -54,3 +54,5 @@ next-env.d.ts
 
 /storage/company-gallery/
 /storage/customer-avatars/
+
+/storage/cut-photos/

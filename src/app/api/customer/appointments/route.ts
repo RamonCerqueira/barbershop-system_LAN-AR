@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const customer = await requireCustomer(request)
     const appointments = await prisma.appointment.findMany({
       where: { customerAccountId: customer.id },
-      select: { id: true, date: true, time: true, status: true, price: true, duration: true,
+      select: { id: true, date: true, time: true, status: true, price: true, duration: true, depositRequired: true, depositAmount: true,
         serviceId: true, employeeId: true, serviceNameSnapshot: true, employeeNameSnapshot: true,
         company: { select: { id: true, name: true, phone: true, address: true, settings: { select: { appointmentConfig: true } } } },
         service: { select: { name: true } }, employee: { select: { name: true } }, review: { select: { rating: true, comment: true } } },
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
       return { id: a.id, date: a.date.toISOString().slice(0, 10), time: a.time, status: a.status, price: Number(a.price), duration: a.duration,
         companyId: a.company.id, companyName: a.company.name, companyPhone: a.company.phone, address: a.company.address,
         serviceId: a.serviceId, employeeId: a.employeeId, service: a.serviceNameSnapshot || a.service.name, professional: a.employeeNameSnapshot || a.employee.name,
-        cancellationHours: Math.max(2, Number(config.cancellationDeadline) || 2), review: a.review,
-        pix: a.status === 'SCHEDULED' && new Date(`${a.date.toISOString().slice(0,10)}T${a.time}:00-03:00`).getTime() - Date.now() > (Number(config.paymentDeadlineHours) || 2) * 3600000 && config.requirePrepaymentToConfirm && config.pixKey ? { key: String(config.pixKey), beneficiary: String(config.pixBeneficiary || a.company.name), bank: String(config.pixBank || ''), deadlineHours: Number(config.paymentDeadlineHours) || 2 } : null }
+        depositRequired: a.depositRequired, depositAmount: Number(a.depositAmount), cancellationHours: Math.max(2, Number(config.cancellationDeadline) || 2), review: a.review,
+        pix: a.status === 'SCHEDULED' && new Date(`${a.date.toISOString().slice(0,10)}T${a.time}:00-03:00`).getTime() - Date.now() > (Number(config.paymentDeadlineHours) || 2) * 3600000 && (a.depositRequired || config.requirePrepaymentToConfirm) && config.pixKey ? { key: String(config.pixKey), beneficiary: String(config.pixBeneficiary || a.company.name), bank: String(config.pixBank || ''), deadlineHours: Number(config.paymentDeadlineHours) || 2 } : null }
     }), { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) { return apiError(error) }
 }

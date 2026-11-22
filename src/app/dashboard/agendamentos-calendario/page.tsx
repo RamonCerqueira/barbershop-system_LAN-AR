@@ -33,6 +33,8 @@ interface Appointment {
   date: string
   time: string
   duration: number
+  depositRequired?: boolean
+  depositAmount?: number
   price: number
   status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
   notes?: string
@@ -50,6 +52,8 @@ interface ServiceOption {
   id: string
   name: string
   duration: number
+  depositRequired?: boolean
+  depositAmount?: number
   price: number
   isActive?: boolean
 }
@@ -617,7 +621,7 @@ export default function AgendamentosCalendario() {
                 <div>
                   <span className="text-gray-400">Valor:</span>
                   <p className="text-orange-400 font-bold mt-0.5">
-                    R$ {selectedAppointment.price.toFixed(2)}
+                    R$ {selectedAppointment.price.toFixed(2)}{selectedAppointment.depositRequired && <span className="block text-xs text-amber-400">Sinal exigido: R$ {(selectedAppointment.depositAmount || 0).toFixed(2)} · confira o PIX</span>}
                   </p>
                 </div>
               </div>

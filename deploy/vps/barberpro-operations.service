@@ -1,0 +1,16 @@
+[Unit]
+Description=BarberPro customer reminders and waiting list
+After=network-online.target barberpro.service
+[Service]
+Type=oneshot
+User=barberpro
+Group=barberpro
+WorkingDirectory=/opt/barberpro/current
+ExecStart=/opt/node-v22.23.4-linux-x64/bin/node --env-file=/opt/barberpro/shared/app.env scripts/processCustomerOperations.cjs
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/barberpro/shared
+TimeoutStartSec=300

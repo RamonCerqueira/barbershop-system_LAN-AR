@@ -205,6 +205,83 @@ async function main() {
       assert.equal((await edit.PATCH(req('PATCH',{action:'CANCEL'},tokenA),{params:Promise.resolve({id:reservation.id})})).status,200);
     } finally { await db.company.update({where:{id:company.id},data:{subscriptionStatus:'TRIAL'}}); }
   });
+  const operator=await db.user.findFirst({where:{companyId:company.id}});
+  const operatorToken=await auth.generateToken({id:operator.id,email:operator.email,name:operator.name,role:'ADMIN',companyId:company.id,type:'COMPANY_USER'});
+  const opReq=(method,body,url='http://localhost/api/operations')=>new NextRequest(url,{method,headers:{cookie:'barberpro_token='+operatorToken,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+  const operations=require('../src/app/api/operations/route.ts'),blocks=require('../src/app/api/employee-blocks/route.ts'),waiting=require('../src/app/api/customer/waitlist/route.ts'),alerts=require('../src/app/api/customer/alerts/route.ts');
+  const {processWaitlist}=require('../src/lib/waitlist.ts'),{processCustomerReminders}=require('../src/lib/customer-reminders.ts');
+  await check('Vacation ranges and shop holidays block every booking path without overwriting existing appointments',async()=>{
+    const start=new Date(Date.now()+8*86400000).toISOString().slice(0,10),end=new Date(Date.now()+9*86400000).toISOString().slice(0,10);
+    assert.equal((await blocks.POST(req('POST',{employeeId:employee.id,date:start,endDate:end,startTime:'08:00',endTime:'20:00'},tokenA))).status,401);
+    assert.equal((await blocks.POST(opReq('POST',{employeeId:'ALL',date:start,endDate:end,startTime:'08:00',endTime:'20:00',reason:'Férias'}))).status,201);
+    assert.equal(await db.employeeBlock.count({where:{companyId:company.id,date:{in:[start,end]}}}),2);
+    await assert.rejects(()=>createBooking({clientName:'Cliente férias',clientPhone:'11966666666',serviceId:service.id,employeeId:employee.id,date:end,time:'09:00'},company.id,crypto.randomUUID(),true),e=>e.status===409||e.statusCode===409||e.message.includes('indisponível'));
+    const existing=await db.appointment.findFirst({where:{companyId:company.id,status:'SCHEDULED'}});
+    assert.equal((await blocks.POST(opReq('POST',{employeeId:employee.id,date:existing.date.toISOString().slice(0,10),startTime:'00:00',endTime:'23:59'}))).status,409);
+  });
+  await check('No-show policy is scoped, requires PIX configuration, and snapshots the deposit on new reservations',async()=>{
+    const previous=await db.companySettings.findUnique({where:{companyId:company.id}});await db.companySettings.update({where:{companyId:company.id},data:{appointmentConfig:{...previous.appointmentConfig,requirePrepaymentToConfirm:false,pixKey:''}}});
+    const config={action:'CONFIG',noShowDepositEnabled:true,noShowThreshold:1,depositPercent:30,customerRemindersEnabled:true,reminderHours:24,customerEmailEnabled:false,customerWhatsappEnabled:false};
+    assert.equal((await operations.PATCH(opReq('PATCH',config))).status,400);
+    const s=await db.companySettings.findUnique({where:{companyId:company.id}});await db.companySettings.update({where:{companyId:company.id},data:{appointmentConfig:{...s.appointmentConfig,pixKey:'test@example.invalid'}}});
+    assert.equal((await operations.PATCH(opReq('PATCH',config))).status,200);
+    const client=await db.client.findFirst({where:{companyId:company.id,customerAccountId:customerA.id}});
+    const past=await db.appointment.create({data:{companyId:company.id,clientId:client.id,serviceId:service.id,employeeId:employee.id,customerAccountId:customerA.id,date:new Date(Date.now()-2*86400000),time:'09:00',price:40,status:'SCHEDULED'}});
+    await updateBooking(past.id,company.id,{status:'NO_SHOW'});
+    const a=await createBooking({clientName:customerA.name,clientPhone:customerA.phone,serviceId:service.id,employeeId:employee.id,date,time:'16:00'},company.id,crypto.randomUUID(),true,customerA.id);
+    assert.equal(a.appointment.depositRequired,true);assert.equal(Number(a.appointment.depositAmount),12);assert.equal(a.appointment.status,'SCHEDULED');
+    await assert.rejects(()=>updateBooking(a.appointment.id,company.id,{status:'NO_SHOW'}),/após o horário/);
+    const customerConfirm=require('../src/app/api/public/appointments/[id]/route.ts');
+    const confirmReq=new NextRequest('http://localhost/api/public/appointments/'+a.appointment.id,{method:'PATCH',headers:{'content-type':'application/json','x-confirmation-token':a.confirmationToken},body:JSON.stringify({status:'CONFIRMED'})});
+    assert.equal((await customerConfirm.PATCH(confirmReq,{params:Promise.resolve({id:a.appointment.id})})).status,409);
+    assert.equal((await edit.PATCH(req('PATCH',{action:'PAYMENT_NOTICE'},tokenA),{params:Promise.resolve({id:a.appointment.id})})).status,200);
+    assert.equal((await db.appointment.findUnique({where:{id:a.appointment.id}})).status,'SCHEDULED');
+  });
+  let waitA,waitB;
+  await check('Waitlist maintains FIFO, rejects foreign cancellation and never creates appointments automatically',async()=>{
+    const body={companyId:company.id,serviceId:service.id,employeeId:employee.id,date,time:'17:00'};
+    for(const token of [tokenA,tokenB])assert.equal((await waiting.POST(req('POST',body,token))).status,201);
+    waitA=await db.waitlistEntry.findFirst({where:{customerId:customerA.id}});waitB=await db.waitlistEntry.findFirst({where:{customerId:customerB.id}});
+    await db.waitlistEntry.update({where:{id:waitA.id},data:{createdAt:new Date(Date.now()-10000)}});
+    assert.equal((await waiting.DELETE(req('DELETE',{id:waitA.id},tokenB))).status,404);
+    const count=await db.appointment.count();await processWaitlist();await processWaitlist();assert.equal(await db.appointment.count(),count);
+    assert.equal((await db.waitlistEntry.findUnique({where:{id:waitA.id}})).status,'OFFERED');assert.equal((await db.waitlistEntry.findUnique({where:{id:waitB.id}})).status,'WAITING');
+    await db.waitlistEntry.update({where:{id:waitA.id},data:{expiresAt:new Date(Date.now()-1000)}});await processWaitlist();
+    assert.equal((await db.waitlistEntry.findUnique({where:{id:waitA.id}})).status,'EXPIRED');assert.equal((await db.waitlistEntry.findUnique({where:{id:waitB.id}})).status,'OFFERED');
+    await createBooking({clientName:customerB.name,clientPhone:customerB.phone,serviceId:service.id,employeeId:employee.id,date,time:'17:00'},company.id,crypto.randomUUID(),true,customerB.id);
+    assert.equal((await db.waitlistEntry.findUnique({where:{id:waitB.id}})).status,'BOOKED');
+  });
+  await check('Customer alerts deduplicate, respect owner read access and external channel opt-in',async()=>{
+    await processCustomerReminders();const count=await db.customerAlert.count();await processCustomerReminders();assert.equal(await db.customerAlert.count(),count);
+    const own=await db.customerAlert.findFirst({where:{customerId:customerA.id}});
+    await alerts.PATCH(req('PATCH',{readId:own.id,email:true,whatsapp:false},tokenB));assert.equal((await db.customerAlert.findUnique({where:{id:own.id}})).readAt,null);
+    await alerts.PATCH(req('PATCH',{readId:own.id,email:true,whatsapp:false},tokenA));assert.ok((await db.customerAlert.findUnique({where:{id:own.id}})).readAt);
+    assert.equal((await db.customerAccount.findUnique({where:{id:customerA.id}})).reminderEmail,true);
+    assert.equal(await db.customerAlert.count({where:{emailStatus:'SENT'}}),0);
+    assert.equal((await alerts.GET(req('GET'))).status,401);
+    const mail=require('../src/lib/mail.ts'),send=mail.sendSubscriptionMail,configured=mail.isMailConfigured;let sent=0;
+    mail.isMailConfigured=()=>true;mail.sendSubscriptionMail=async()=>{sent++;return {sent:true}};
+    try{
+      const s=await db.companySettings.findUnique({where:{companyId:company.id}});
+      await db.companySettings.update({where:{companyId:company.id},data:{notificationConfig:{...s.notificationConfig,customerEmailEnabled:true}}});
+      await processCustomerReminders();assert.ok(sent>0);const count=sent;await processCustomerReminders();assert.equal(sent,count);
+    }finally{mail.sendSubscriptionMail=send;mail.isMailConfigured=configured}
+  });
+  await check('Cut photos remain private until the owner consents, can be revoked, and are physically removed',async()=>{
+    const photoRoutes=require('../src/app/api/appointment-photos/route.ts'),image=require('../src/app/api/cut-photos/[id]/route.ts');
+    const a=await db.appointment.findFirst({where:{companyId:company.id,customerAccountId:customerA.id,status:'COMPLETED'}});
+    const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=','base64');
+    const form=new FormData();form.set('appointmentId',a.id);form.set('photo',new File([png],'corte.png',{type:'image/png'}));
+    const upload=new NextRequest('http://localhost/api/appointment-photos',{method:'POST',headers:{cookie:'barberpro_token='+operatorToken},body:form});assert.equal((await photoRoutes.POST(upload)).status,201);
+    const p=await db.appointmentPhoto.findFirst({where:{appointmentId:a.id}}),params={params:Promise.resolve({id:p.id})};
+    try{
+      assert.equal((await image.GET(req('GET'),params)).status,404);assert.equal((await image.GET(req('GET',null,tokenB),params)).status,404);assert.equal((await image.GET(req('GET',null,tokenA),params)).status,200);
+      assert.equal((await photoRoutes.PATCH(req('PATCH',{id:p.id,publicationConsent:true},tokenB))).status,404);
+      assert.equal((await photoRoutes.PATCH(req('PATCH',{id:p.id,publicationConsent:true},tokenA))).status,200);assert.equal((await image.GET(req('GET'),params)).status,200);
+      await photoRoutes.PATCH(req('PATCH',{id:p.id,publicationConsent:false},tokenA));assert.equal((await image.GET(req('GET'),params)).status,404);
+      assert.equal((await photoRoutes.DELETE(opReq('DELETE',{id:p.id}))).status,200);assert.equal(fs.existsSync(logoFilePath(p.filename,'cut')),false);
+    }finally{fs.rmSync(logoFilePath(p.filename,'cut'),{force:true})}
+  });
   await check('Logout revokes customer session without creating barber access',async()=>{
     assert.equal((await account.DELETE(req('DELETE',null,tokenA))).status,200);assert.equal((await (await account.GET(req('GET',null,tokenA))).json()).customer,null);
     const user=await db.user.findFirst();assert.equal(user.role,'ADMIN');assert.equal(await db.user.count(),1);
