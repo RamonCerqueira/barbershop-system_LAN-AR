@@ -13,6 +13,7 @@ import {
   QrCode,
   Copy
 } from 'lucide-react'
+import CompanyGallery from '@/components/CompanyGallery'
 import WaitingRoomManager from '@/components/WaitingRoomManager'
 import { Monitor } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
@@ -345,6 +346,7 @@ export default function Configuracoes() {
                                   </div>
                                 </div>
 
+                                <CompanyGallery />
                                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                                   <SaasField label="Nome da Barbearia" required htmlFor="cfg-name">
                                     <input

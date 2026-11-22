@@ -45,12 +45,13 @@ async function assertNoEmployeeBlock(
 async function lock(tx: Prisma.TransactionClient, company: string, employee: string, date: string) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${company}),hashtext(${employee + ':' + date}))::text`
 }
-export async function createBooking(input: unknown, companyId: string, idempotency: string | null, publicBooking = false) {
+export async function createBooking(input: unknown, companyId: string, idempotency: string | null, publicBooking = false, customerAccountId?: string) {
   const data = bookingInput.parse(input)
   if (!idempotency || !/^[a-zA-Z0-9_-]{16,100}$/.test(idempotency)) throw new HttpError(400, 'Chave de operação obrigatória. Atualize a página e tente novamente.')
   return prisma.$transaction(async tx => {
     await lock(tx,companyId,data.employeeId,data.date)
     const previous = await tx.appointment.findUnique({ where: { idempotencyKey: companyId + ':' + idempotency }, include: appointmentInclude })
+    if (publicBooking && previous && previous.customerAccountId !== (customerAccountId || null)) throw new HttpError(409, 'Esta operação pertence a outra sessão. Tente novamente.')
     if (previous) return { appointment: previous, confirmationToken: undefined, repeated: true }
     const [service,employee,settings,company] = await Promise.all([
       tx.service.findFirst({ where: { id: data.serviceId, companyId, isActive: true }, include: { serviceCosts: { where: { isActive: true } } } }),
@@ -75,13 +76,13 @@ export async function createBooking(input: unknown, companyId: string, idempoten
     else {
       if (!data.clientName || !data.clientPhone) throw new HttpError(400, 'Nome e telefone são obrigatórios.')
       await lock(tx,companyId,'client',data.clientPhone)
-      client = await tx.client.findFirst({ where: { companyId, phone: data.clientPhone, isActive: true } })
-      if (!client) client = await tx.client.create({ data: { fullName: data.clientName, phone: data.clientPhone, email: data.clientEmail, companyId, rating: null } })
+      client = await tx.client.findFirst({ where: { companyId, ...(customerAccountId ? { customerAccountId } : { phone: data.clientPhone, customerAccountId: null, ...(publicBooking ? { fullName: { equals: data.clientName, mode: 'insensitive' as const } } : {}) }), isActive: true } })
+      if (!client) client = await tx.client.create({ data: { fullName: data.clientName, phone: data.clientPhone, email: data.clientEmail, companyId, customerAccountId, rating: null } })
     }
     if (!client) throw new HttpError(404, 'Cliente indisponível.')
     const confirmationToken = opaqueToken()
     const appointment = await tx.appointment.create({ data: {
-      companyId, clientId: client.id, serviceId: service.id, employeeId: employee.id, date: new Date(`${data.date}T12:00:00Z`), time: data.time,
+      companyId, customerAccountId: customerAccountId || (!publicBooking ? client.customerAccountId : undefined), clientId: client.id, serviceId: service.id, employeeId: employee.id, date: new Date(`${data.date}T12:00:00Z`), time: data.time,
       price: !publicBooking && data.price !== undefined ? data.price : service.price, duration: service.duration, notes: data.notes,
       status: (settings.appointmentConfig as { autoConfirm?: boolean }).autoConfirm ? 'CONFIRMED' : 'SCHEDULED',
       confirmationHash: digest(confirmationToken), confirmationExpiresAt: new Date(`${data.date}T23:59:59-03:00`), idempotencyKey: companyId + ':' + idempotency,
@@ -95,12 +96,21 @@ export async function createBooking(input: unknown, companyId: string, idempoten
 }
 
 const updateInput = bookingInput.partial().extend({ status: z.enum(['SCHEDULED','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED','NO_SHOW']).optional() })
-export async function updateBooking(id: string, companyId: string, input: unknown) {
+export async function updateBooking(id: string, companyId: string, input: unknown, customerAccountId?: string) {
   const data = updateInput.parse(input)
   return prisma.$transaction(async tx => {
     await lock(tx,companyId,'appointment',id)
     const current = await tx.appointment.findFirst({ where: { id, companyId }, include: appointmentInclude })
     if (!current) throw new HttpError(404, 'Agendamento não encontrado.')
+    if (customerAccountId) {
+      if (current.customerAccountId !== customerAccountId) throw new HttpError(404, 'Agendamento não encontrado.')
+      const settings = await tx.companySettings.findUnique({ where: { companyId } })
+      const config = (settings?.appointmentConfig || {}) as { cancellationDeadline?: number }
+      const deadline = Math.max(2, Number(config.cancellationDeadline) || 2)
+      const instant = new Date(`${current.date.toISOString().slice(0, 10)}T${current.time}:00-03:00`)
+      if (!['SCHEDULED','CONFIRMED'].includes(current.status) || instant.getTime() - Date.now() < deadline * 3600000) throw new HttpError(409, `Alterações permitidas até ${deadline}h antes do atendimento. Entre em contato com a barbearia.`)
+      if (data.status && data.status !== 'CANCELLED') throw new HttpError(400, 'Alteração não permitida.')
+    }
     const nextStatus = data.status || current.status
     assertTransition(current.status,nextStatus)
     const rescheduling = data.date !== undefined || data.time !== undefined || data.employeeId !== undefined || data.serviceId !== undefined || data.clientId !== undefined
@@ -108,6 +118,7 @@ export async function updateBooking(id: string, companyId: string, input: unknow
     const date = data.date || current.date.toISOString().slice(0,10)
     const time = data.time || current.time
     const employeeId = data.employeeId || current.employeeId
+    let nextCustomerAccountId = current.customerAccountId
     let duration = current.duration
     let price = data.price ?? current.price
     if (rescheduling) {
@@ -118,6 +129,7 @@ export async function updateBooking(id: string, companyId: string, input: unknow
         tx.client.findFirst({ where: { id: data.clientId || current.clientId, companyId, isActive: true } }), tx.companySettings.findUnique({ where: { companyId } })
       ])
       if (!service || !employee || !client || !settings) throw new HttpError(404, 'Dados de agendamento indisponíveis.')
+      if (data.clientId && data.clientId !== current.clientId) nextCustomerAccountId = client.customerAccountId
       if (data.serviceId && data.serviceId !== current.serviceId) { duration = service.duration; price = data.price ?? service.price }
       const occupied = await tx.appointment.findMany({ where: { id: { not: id }, companyId, employeeId, date: dayRange(date), status: { notIn: ['CANCELLED','NO_SHOW'] } }, select: { time: true, duration: true } })
       assertAvailable(date,time,duration,settings as unknown as BookingSettings,occupied)
@@ -128,7 +140,7 @@ export async function updateBooking(id: string, companyId: string, input: unknow
       const ongoing = await tx.appointment.findFirst({ where: { companyId, employeeId, status: 'IN_PROGRESS', id: { not: id } }, select: { id: true } })
       if (ongoing) throw new HttpError(409, 'Este profissional já está em atendimento. Conclua o atendimento atual antes de iniciar o próximo.')
     }
-    const updated = await tx.appointment.update({ where: { id }, data: { date: new Date(`${date}T12:00:00Z`), time, employeeId, serviceId: data.serviceId, clientId: data.clientId, notes: data.notes, status: nextStatus, duration, price }, include: appointmentInclude })
+    const updated = await tx.appointment.update({ where: { id }, data: { customerAccountId: nextCustomerAccountId, date: new Date(`${date}T12:00:00Z`), time, employeeId, serviceId: data.serviceId, clientId: data.clientId, notes: data.notes, status: nextStatus, duration, price }, include: appointmentInclude })
     if (nextStatus === 'COMPLETED' && current.status !== 'COMPLETED') await tx.client.update({ where: { id: current.clientId }, data: { totalVisits: { increment: 1 } } })
     return updated
   }, { timeout: 15_000 })

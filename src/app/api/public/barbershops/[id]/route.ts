@@ -1,3 +1,6 @@
+import { evaluateCompanySubscription } from '@/lib/subscription'
+import { dateInput } from '@/lib/validation'
+import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -10,11 +13,14 @@ export async function GET(
   try {
     const { id } = await params
     const { searchParams } = new URL(request.url)
-    const dateParam = searchParams.get('date')
+    const rawDate = searchParams.get('date')
+    const dateParam = rawDate ? dateInput.parse(rawDate) : null
 
     const company = await prisma.company.findFirst({
       where: { id, isActive: true },
       include: {
+        photos: { orderBy: { createdAt: 'asc' } },
+        customerReviews: { orderBy: { createdAt: 'desc' }, take: 50, select: { rating: true, comment: true, createdAt: true, customer: { select: { name: true } } } },
         services: {
           where: { isActive: true },
           orderBy: { price: 'asc' }
@@ -92,7 +98,7 @@ export async function GET(
     ]
 
     let targetDayConfig = bh.monday || {
-      isOpen: true,
+      isOpen: false,
       openTime: '09:00',
       closeTime: '19:00',
       breakStart: '12:00',
@@ -103,9 +109,7 @@ export async function GET(
       const [y, m, d] = dateParam.split('-').map(Number)
       const selectedDayOfWeek = new Date(y, m - 1, d, 12, 0, 0).getDay()
       const dayKey = dayKeys[selectedDayOfWeek]
-      if (bh[dayKey]) {
-        targetDayConfig = bh[dayKey]
-      }
+      targetDayConfig = bh[dayKey] || { isOpen: false }
     }
 
     const toMinutes = (hhmm: string) => {
@@ -139,23 +143,23 @@ export async function GET(
         ) {
           continue
         }
-        if (dateParam && new Date(dateParam + 'T' + toHHMM(t) + ':00-03:00') <= new Date()) continue
+        if (dateParam && new Date(dateParam + 'T' + toHHMM(t) + ':00-03:00') <= new Date(Date.now() + Math.max(0, Number(aptConfig.minAdvanceMinutes) || 0) * 60000)) continue
         allSlots.push(toHHMM(t))
       }
     }
 
-    const ratings = company.clients
-      .map((c) => c.rating)
-      .filter((r): r is number => typeof r === 'number')
-    const avgRating =
-      ratings.length > 0
-        ? Number((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1))
-        : 0
+    const ratingStats = await prisma.customerReview.aggregate({ where: { companyId: company.id }, _avg: { rating: true }, _count: { rating: true } })
+    const avgRating = Number((ratingStats._avg.rating || 0).toFixed(1))
 
     const loc = (company.settings?.locationConfig as any) || {}
 
     return jsonResponse({
       id: company.id,
+      logoUrl: company.logoPath ? `/api/public/barbershops/${company.id}/logo?v=${company.logoPath}` : null,
+      photos: company.photos.map(photo => `/api/public/barbershops/${company.id}/photos/${photo.id}`),
+      bookingAvailable: evaluateCompanySubscription(company).hasAccess,
+      advanceBookingDays: Math.max(1, Number(aptConfig.advanceBookingDays) || 30),
+      reviews: company.customerReviews.map(review => ({ rating: review.rating, comment: review.comment, date: review.createdAt, author: review.customer.name.trim().split(/\s+/)[0] })),
       name: company.name,
       address: company.address,
       city: loc.city || '',
@@ -170,20 +174,12 @@ export async function GET(
         loc.description ||
         'Barbearia moderna com profissionais especializados e atendimento de excelência.',
       rating: avgRating,
-      reviewCount: ratings.length,
-      openingHours: {
-        monday: bh.monday?.isOpen === false ? 'Fechado' : `${bh.monday?.openTime || '09:00'} - ${bh.monday?.closeTime || '19:00'}`,
-        tuesday: bh.tuesday?.isOpen === false ? 'Fechado' : `${bh.tuesday?.openTime || '09:00'} - ${bh.tuesday?.closeTime || '19:00'}`,
-        wednesday: bh.wednesday?.isOpen === false ? 'Fechado' : `${bh.wednesday?.openTime || '09:00'} - ${bh.wednesday?.closeTime || '19:00'}`,
-        thursday: bh.thursday?.isOpen === false ? 'Fechado' : `${bh.thursday?.openTime || '09:00'} - ${bh.thursday?.closeTime || '20:00'}`,
-        friday: bh.friday?.isOpen === false ? 'Fechado' : `${bh.friday?.openTime || '09:00'} - ${bh.friday?.closeTime || '20:00'}`,
-        saturday: bh.saturday?.isOpen === false ? 'Fechado' : `${bh.saturday?.openTime || '08:00'} - ${bh.saturday?.closeTime || '18:00'}`,
-        sunday: bh.sunday?.isOpen ? `${bh.sunday?.openTime || '09:00'} - ${bh.sunday?.closeTime || '14:00'}` : 'Fechado'
-      },
+      reviewCount: ratingStats._count.rating,
+      openingHours: Object.fromEntries(dayKeys.map(day => [day, !bh[day] ? 'Não informado' : bh[day].isOpen === false ? 'Fechado' : `${bh[day].openTime || '—'} - ${bh[day].closeTime || '—'}`])),
       amenities: Array.isArray(loc.amenities) ? loc.amenities : [],
       acceptedPayments: Array.isArray(loc.acceptedPayments) ? loc.acceptedPayments : [],
       bookingPolicy: {
-        cancellationDeadlineHours: Number(aptConfig.cancellationDeadline ?? 2),
+        cancellationDeadlineHours: Math.max(2, Number(aptConfig.cancellationDeadline) || 2),
         requirePrepaymentToConfirm: Boolean(aptConfig.requirePrepaymentToConfirm),
         paymentDeadlineHours: Number(aptConfig.paymentDeadlineHours ?? 2),
         pix: aptConfig.pixKey
@@ -214,11 +210,7 @@ export async function GET(
       bookedSlots
     })
   } catch (error) {
-    console.error('Erro ao buscar detalhes da barbearia:', error)
-    return jsonResponse(
-      { error: 'Erro ao buscar detalhes da barbearia' },
-      { status: 500 }
-    )
+    return apiError(error)
   }
 }
 

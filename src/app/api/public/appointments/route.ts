@@ -1,3 +1,4 @@
+import { getCustomer } from '@/lib/customer-auth'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { createBooking } from '@/lib/bookings'
@@ -11,7 +12,8 @@ export async function POST(request: NextRequest) {
     await rateLimit(request,'public-booking','',20)
     const body = await request.json()
     if (typeof body.companyId !== 'string' || !body.companyId) throw new HttpError(400,'Empresa obrigatória.')
-    const result = await createBooking(body,body.companyId,request.headers.get('idempotency-key'),true)
+    const customer = await getCustomer(request)
+    const result = await createBooking(customer ? { ...body, clientName: customer.name, clientPhone: customer.phone, clientEmail: customer.email } : body,body.companyId,request.headers.get('idempotency-key'),true,customer?.id)
     const a = result.appointment
     return jsonResponse({ id: a.id, date: a.date.toISOString().slice(0,10), time: a.time, price: a.price, status: a.status, service: a.service.name, barber: a.employee.name,
       confirmationUrl: result.confirmationToken ? '/confirm/' + a.id + '?token=' + result.confirmationToken : undefined,

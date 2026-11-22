@@ -50,6 +50,9 @@ model Company {
   updatedAt             DateTime           @updatedAt
 
   // Relacionamentos
+  customerFavorites           CustomerFavorite[]
+  customerReviews             CustomerReview[]
+  photos                      CompanyPhoto[]
   users                       User[]
   services                    Service[]
   employees                   Employee[]
@@ -306,6 +309,8 @@ enum ProductCategory {
 
 // Modelo para clientes
 model Client {
+  customerAccountId String?
+  customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
   id          String    @id @default(cuid())
   fullName    String
   phone       String
@@ -328,12 +333,16 @@ model Client {
   sales        Sale[]
   campaignLogs WhatsAppCampaignLog[]
 
+  @@index([customerAccountId, companyId])
   @@index([companyId, phone], map: "clients_company_phone_idx")
   @@map("clients")
 }
 
 // Modelo para agendamentos
 model Appointment {
+  customerAccountId String?
+  customerAccount CustomerAccount? @relation(fields: [customerAccountId], references: [id], onDelete: SetNull)
+  review CustomerReview?
   id         String            @id @default(cuid())
   date       DateTime
   time       String
@@ -363,6 +372,7 @@ model Appointment {
   company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sales    Sale[]
 
+  @@index([customerAccountId, date])
   @@index([companyId, employeeId, date], map: "appointments_company_employee_date_idx")
   @@map("appointments")
 }
@@ -625,4 +635,74 @@ model EmployeeBlock {
 
   @@index([companyId, employeeId, date], map: "employee_blocks_comp_emp_date_idx")
   @@map("employee_blocks")
+}
+
+model CustomerAccount {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  phone String
+  password String
+  avatarPath String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sessions CustomerSession[]
+  resets CustomerPasswordReset[]
+  clients Client[]
+  appointments Appointment[]
+  favorites CustomerFavorite[]
+  reviews CustomerReview[]
+  @@map("customer_accounts")
+}
+model CustomerSession {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  customerId String
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([customerId])
+  @@map("customer_sessions")
+}
+model CustomerPasswordReset {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  customerId String
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt DateTime?
+  @@map("customer_password_resets")
+}
+model CustomerFavorite {
+  customerId String
+  companyId String
+  createdAt DateTime @default(now())
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@id([customerId, companyId])
+  @@map("customer_favorites")
+}
+model CustomerReview {
+  id String @id @default(cuid())
+  customerId String
+  companyId String
+  appointmentId String @unique
+  rating Int
+  comment String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  @@index([companyId, createdAt])
+  @@map("customer_reviews")
+}
+model CompanyPhoto {
+  id String @id @default(cuid())
+  companyId String
+  filename String
+  createdAt DateTime @default(now())
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@index([companyId])
+  @@map("company_photos")
 }

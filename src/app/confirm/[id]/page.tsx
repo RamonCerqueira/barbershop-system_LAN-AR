@@ -1,5 +1,6 @@
 'use client'
 
+import { ClaimReservation } from '@/components/customer/ClaimReservation'
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { CheckCircle, XCircle, Calendar, Clock, Scissors, MapPin, Copy, Check, QrCode, AlertTriangle } from 'lucide-react'
@@ -127,6 +128,7 @@ export default function ConfirmAppointmentPage() {
                           <h1 className="mt-1 text-2xl font-bold text-white">{appointment.companyName}</h1>
                         </div>
 
+                          <ClaimReservation id={id} />
                           {error && (
                             <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
                               {error}

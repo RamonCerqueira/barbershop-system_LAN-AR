@@ -1,3 +1,5 @@
+import { isShopOpen } from '@/lib/shop-discovery'
+import { evaluateCompanySubscription } from '@/lib/subscription'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -21,6 +23,8 @@ export async function GET(request: NextRequest) {
           : {})
       },
       include: {
+        photos: { orderBy: { createdAt: 'asc' } },
+        customerReviews: { select: { rating: true } },
         services: {
           where: { isActive: true },
           orderBy: { price: 'asc' }
@@ -39,7 +43,7 @@ export async function GET(request: NextRequest) {
     const formatted = companies
       .filter((company) => (company.settings?.locationConfig as any)?.showOnMap !== false)
       .map((company) => {
-      const ratings = company.clients
+      const ratings = company.customerReviews
         .map((c) => c.rating)
         .filter((r): r is number => typeof r === 'number')
       const avgRating =
@@ -57,23 +61,16 @@ export async function GET(request: NextRequest) {
       const priceRange =
         minPrice <= 35 ? 'R$ 25-50' : maxPrice <= 70 ? 'R$ 35-70' : 'R$ 45-100'
 
-      const dayKeys = [
-        'sunday',
-        'monday',
-        'tuesday',
-        'wednesday',
-        'thursday',
-        'friday',
-        'saturday'
-      ]
-      const todayKey = dayKeys[new Date().getDay()]
-      const bh = (company.settings?.businessHours as any) || {}
-      const isOpenToday = bh[todayKey] ? bh[todayKey].isOpen !== false : true
+      const bh = (company.settings?.businessHours || {}) as Record<string, { isOpen?: boolean; openTime?: string; closeTime?: string; breakStart?: string; breakEnd?: string }>
+      const isOpenToday = isShopOpen(bh)
 
       const loc = (company.settings?.locationConfig as any) || {}
 
       return {
         id: company.id,
+        logoUrl: company.logoPath ? `/api/public/barbershops/${company.id}/logo?v=${company.logoPath}` : null,
+        photos: company.photos.map(photo => `/api/public/barbershops/${company.id}/photos/${photo.id}`),
+        bookingAvailable: evaluateCompanySubscription(company).hasAccess,
         name: company.name,
         address: company.address,
         city: loc.city || '',

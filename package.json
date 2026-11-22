@@ -18,6 +18,7 @@
     "db:validate": "prisma validate",
     "test": "node scripts/test-integration.cjs",
     "test:subscription": "node scripts/test-subscription.cjs",
+    "test:customer": "node scripts/test-customer-portal.cjs",
     "test:waiting-room": "node scripts/test-waiting-room.cjs",
     "test:pricing": "node scripts/test-plan-pricing.cjs",
     "owner:bootstrap": "node scripts/bootstrap-owner.cjs",
