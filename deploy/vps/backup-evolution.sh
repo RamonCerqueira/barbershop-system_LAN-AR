@@ -19,5 +19,10 @@ paused=0
 docker compose exec -T db createdb -U evolution evolution_backup_verify
 docker compose exec -T db pg_restore -U evolution --exit-on-error --no-owner --no-acl -d evolution_backup_verify < "$destination/evolution.dump"
 docker compose exec -T db dropdb -U evolution evolution_backup_verify
-sha256sum "$destination/evolution.dump" "$destination/evolution-sessions.tar.gz" > "$destination/EVOLUTION_SHA256SUMS"
+restore_dir=$(mktemp -d "$destination/evolution-restore.XXXXXX")
+[[ "$restore_dir" == "$destination"/evolution-restore.* ]] || exit 1
+tar -xzf "$destination/evolution-sessions.tar.gz" -C "$restore_dir"
+tar -dzf "$destination/evolution-sessions.tar.gz" -C "$restore_dir"
+rm -r -- "$restore_dir"
+(cd "$destination" && sha256sum evolution.dump evolution-sessions.tar.gz > EVOLUTION_SHA256SUMS && sha256sum -c EVOLUTION_SHA256SUMS)
 printf 'EVOLUTION_RESTORE_OK\n' > "$destination/EVOLUTION_VERIFIED"
