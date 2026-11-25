@@ -1,4 +1,5 @@
 'use client'
+import WhatsAppConnection from '@/components/WhatsAppConnection'
 
 import { useState, useEffect, useCallback } from 'react'
 import {
@@ -867,53 +868,7 @@ export default function Configuracoes() {
                 )}
 
                 {/* ABA 5: WHATSAPP */}
-                {activeTab === 'whatsapp' && (
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <SaasField label="URL da API" htmlFor="wa-url">
-                      <input
-                        id="wa-url"
-                        type="url"
-                        value={whatsappSettings.apiUrl}
-                        onChange={(e) => setWhatsappSettings({ ...whatsappSettings, apiUrl: e.target.value })}
-                        className={saasInputClass}
-                      />
-                    </SaasField>
-                    <SaasField label="Token de Acesso" htmlFor="wa-token">
-                      <input
-                        id="wa-token"
-                        type="password"
-                        value={whatsappSettings.apiToken}
-                        onChange={(e) => setWhatsappSettings({ ...whatsappSettings, apiToken: e.target.value })}
-                        className={saasInputClass}
-                      />
-                    </SaasField>
-                    <SaasField label="Número do WhatsApp (com DDI 55)" htmlFor="wa-num">
-                      <input
-                        id="wa-num"
-                        type="text"
-                        value={whatsappSettings.phoneNumber}
-                        onChange={(e) =>
-                          setWhatsappSettings({ ...whatsappSettings, phoneNumber: e.target.value })
-                        }
-                        className={saasInputClass}
-                      />
-                    </SaasField>
-                    <SaasField label="Antecedência do Lembrete (horas)" htmlFor="wa-hours">
-                      <input
-                        id="wa-hours"
-                        type="number"
-                        value={whatsappSettings.reminderHours}
-                        onChange={(e) =>
-                          setWhatsappSettings({
-                            ...whatsappSettings,
-                            reminderHours: parseInt(e.target.value, 10) || 24
-                          })
-                        }
-                        className={saasInputClass}
-                      />
-                    </SaasField>
-                  </div>
-                )}
+                {activeTab === 'whatsapp' && <WhatsAppConnection />}
 
                 {/* ABA 6: NOTIFICAÇÕES */}
                 {activeTab === 'notifications' && (

@@ -1,3 +1,6 @@
+import { signupContract, verifyContractConsent } from './contracts'
+import { featureForPath } from './plans'
+import { requirePlanFeature } from './entitlements'
 import type { Plan } from '@prisma/client'
 import { SUBSCRIPTION_PLANS } from '@/lib/plans'
 import bcrypt from 'bcryptjs'
@@ -74,6 +77,8 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUserPayload
     const pathname = new URL(request.url).pathname
     if (user.role === 'EMPLOYEE' && !['/api/auth/me', '/api/auth/logout'].includes(pathname)) return null
     if (user.role !== 'ADMIN' && /^\/api\/(settings|employees|users)(\/|$)/.test(pathname) && !(pathname === '/api/settings/branding' && request.method === 'GET')) return null
+    const feature = featureForPath(pathname)
+    if (feature) await requirePlanFeature(user.companyId, feature)
     return { ...decoded, role: user.role, email: user.email, name: user.name, companyName: user.company.name, avatarUrl: user.avatarPath ? `/api/profile/avatar?v=${user.avatarPath}` : null }
   }
 
@@ -137,6 +142,7 @@ export async function createCompany(data: {
   phone: string
   plan: Plan
   password: string
+  legalAcceptance?: {accepted:boolean;hash:string;version:string}
 }) {
 
   const hashedPassword = await hashPassword(data.password)
@@ -170,6 +176,12 @@ export async function createCompany(data: {
         companyId: company.id
       }
     })
+
+    if (data.legalAcceptance) {
+      const document = signupContract(data.plan as import('./plans').PlanCode)
+      verifyContractConsent({...data.legalAcceptance,actor:{id:user.id,name:user.name,email:user.email}},document)
+      await tx.contractAcceptance.create({data:{companyId:company.id,actorId:user.id,actorName:user.name,actorEmail:user.email,kind:document.kind,version:document.version,privacyVersion:document.privacyVersion,documentHash:document.hash,content:document.content,plan:data.plan,amount:document.amount}})
+    }
 
     await tx.companySettings.create({
       data: {

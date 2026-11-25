@@ -46,10 +46,7 @@ export async function GET(request: NextRequest) {
     })
 
     return jsonResponse(sales)
-  } catch (error) {
-    console.error('Erro ao buscar vendas:', error)
-    return jsonResponse({ error: 'Erro ao buscar vendas' }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function POST(request: NextRequest) {

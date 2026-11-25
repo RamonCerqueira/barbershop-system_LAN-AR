@@ -47,19 +47,25 @@ function detectFileSignature(buf: Buffer): { ext: string; mime: string } | null 
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthUser(request)
-    if (!auth || !auth.companyId) {
+    if (!auth || !auth.companyId || auth.role !== 'ADMIN') {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
 
     await rateLimit(request, 'subscription-pix', auth.companyId, 10)
 
     const contentType = request.headers.get('content-type') || ''
+    let accepted = false
+    let contractHash = ''
+    let contractVersion = ''
     let planRaw = ''
     let payerNote = ''
     let proofFile: File | null = null
 
     if (contentType.includes('multipart/form-data')) {
       const form = await request.formData()
+      accepted = form.get('acceptContract') === 'true'
+      contractHash = String(form.get('contractHash') || '')
+      contractVersion = String(form.get('contractVersion') || '')
       planRaw = String(form.get('plan') || '').toUpperCase()
       payerNote = String(form.get('payerNote') || '')
       const fileEntry = form.get('proof')
@@ -68,10 +74,14 @@ export async function POST(request: NextRequest) {
       }
     } else {
       const body = await request.json()
+      accepted = body.acceptContract === true
+      contractHash = String(body.contractHash || '')
+      contractVersion = String(body.contractVersion || '')
       planRaw = String(body.plan || '').toUpperCase()
       payerNote = String(body.payerNote || '')
     }
 
+    if (!accepted || !/^[a-f0-9]{64}$/.test(contractHash) || !contractVersion) throw new HttpError(400,'Leia e aceite o contrato ou aditivo atualizado antes de enviar o pagamento.')
     if (!isAvailablePlan(planRaw)) {
       throw new HttpError(400, 'Plano inválido. Escolha um plano mensal, semestral ou anual.')
     }
@@ -115,8 +125,9 @@ export async function POST(request: NextRequest) {
       payerNote,
       proofFilePath,
       proofFileName,
-      proofMimeType
-    })
+      proofMimeType,
+      legalAcceptance:{accepted,hash:contractHash,version:contractVersion,actor:{id:auth.id,name:auth.name,email:auth.email}}
+    }).catch(async error => { if (proofFilePath) await fs.unlink(path.join(resolveProofDir(),proofFilePath)).catch(()=>undefined); throw error })
 
     return jsonResponse(
       {

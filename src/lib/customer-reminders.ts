@@ -1,8 +1,9 @@
+import { isEvolutionConfigured } from './evolution'
 import { prisma } from './prisma'
 import { bookingInstant, dayRange } from './booking-rules'
 import { evaluateCompanySubscription } from './subscription'
 import { isMailConfigured, sendSubscriptionMail } from './mail'
-import { queueMessage, processMessages } from './messages'
+import { queueMessage, processMessages, queueAdministrativeReminders } from './messages'
 
 export const appointmentVersion = (a: { status: string; date: Date; time: string }) => `${a.status}:${a.date.toISOString().slice(0,10)}:${a.time}`
 export async function processCustomerReminders(now = new Date()) {
@@ -47,7 +48,7 @@ export async function processCustomerReminders(now = new Date()) {
         } catch { await prisma.customerAlert.update({where:{id:job.id},data:{emailStatus:'FAILED'}}) }
       }
     }
-    if (job.whatsappStatus === 'PENDING' && job.customer.reminderWhatsapp && config.customerWhatsappEnabled && process.env.WHATSAPP_API_URL && process.env.WHATSAPP_API_TOKEN) {
+    if (job.whatsappStatus === 'PENDING' && job.customer.reminderWhatsapp && config.customerWhatsappEnabled && isEvolutionConfigured()) {
       try {
         // The account owner's opt-in covers transactional messages, never marketing.
         await queueMessage(job.companyId,job.customer.phone,job.title+'\n'+job.message,'customer-alert:'+job.id,undefined,undefined,job.id)
@@ -55,6 +56,7 @@ export async function processCustomerReminders(now = new Date()) {
       } catch { /* Provider may be unavailable; keep pending until the alert expires. */ }
     }
   }
-  if (process.env.WHATSAPP_API_URL && process.env.WHATSAPP_API_TOKEN) await processMessages()
+  if (isEvolutionConfigured()) await queueAdministrativeReminders(now)
+  if (isEvolutionConfigured() || (process.env.WHATSAPP_API_URL && process.env.WHATSAPP_API_TOKEN)) await processMessages()
   return { examined:appointments.length,created }
 }

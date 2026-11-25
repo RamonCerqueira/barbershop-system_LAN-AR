@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -117,13 +118,7 @@ export async function GET(request: NextRequest) {
     })
 
     return jsonResponse(analysis)
-  } catch (error) {
-    console.error('Erro ao calcular análise ABC de serviços:', error)
-    return jsonResponse(
-      { error: 'Erro ao calcular análise de serviços' },
-      { status: 500 }
-    )
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function POST(request: NextRequest) {
@@ -169,13 +164,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error) {
-    console.error('Erro ao adicionar custo de serviço:', error)
-    return jsonResponse(
-      { error: 'Erro ao adicionar custo de serviço' },
-      { status: 500 }
-    )
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function DELETE(request: NextRequest) {
@@ -205,8 +194,5 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.serviceCost.delete({ where: { id } })
     return jsonResponse({ success: true })
-  } catch (error) {
-    console.error('Erro ao excluir custo:', error)
-    return jsonResponse({ error: 'Erro ao excluir custo' }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }

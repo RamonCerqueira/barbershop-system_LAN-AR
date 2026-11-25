@@ -1,3 +1,5 @@
+import { lockCompany, assertProfessionalCapacity, SCHEDULABLE_ROLES } from '@/lib/entitlements'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
 import { employeeInput } from '@/lib/validation'
 import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
@@ -17,6 +19,12 @@ export async function PUT(
 
     const { id } = await params
     const body = employeeInput.partial().parse(await request.json())
+    try { await requireCompanySubscriptionAccess(auth.companyId) } catch(error) {
+      if (body.isActive !== false) throw error
+      const changed = await prisma.employee.updateMany({where:{id,companyId:auth.companyId},data:{isActive:false}})
+      if (!changed.count) return jsonResponse({error:'Colaborador não encontrado'},{status:404})
+      return jsonResponse(await prisma.employee.findFirst({where:{id,companyId:auth.companyId},include:{specialties:true}}))
+    }
 
     const existing = await prisma.employee.findFirst({
       where: { id, companyId: auth.companyId }
@@ -37,6 +45,12 @@ export async function PUT(
     ]
 
     const updated = await prisma.$transaction(async (tx) => {
+      await lockCompany(tx, auth.companyId!)
+      const current = await tx.employee.findFirstOrThrow({where:{id,companyId:auth.companyId}})
+      const nextRole = body.role || current.role
+      const nextActive = body.isActive ?? current.isActive
+      if (nextActive && SCHEDULABLE_ROLES.some(r => r === nextRole)) await assertProfessionalCapacity(tx, auth.companyId!, id)
+
       if (Array.isArray(body.specialties)) {
         await tx.employeeSpecialty.deleteMany({
           where: { employeeId: id }

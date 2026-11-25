@@ -1,3 +1,4 @@
+import { lockCompany, assertProfessionalCapacity, SCHEDULABLE_ROLES } from '@/lib/entitlements'
 import { employeeInput } from '@/lib/validation'
 import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
@@ -12,8 +13,7 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
-    await requireCompanySubscriptionAccess(auth.companyId)
-
+    // The administrator can inspect and deactivate excess records even after expiry.
     const employees = await prisma.employee.findMany({
       where: { companyId: auth.companyId },
       include: {
@@ -86,7 +86,10 @@ export async function POST(request: NextRequest) {
             .filter((s) => s.specialty.length > 0)
         : []
 
-    const employee = await prisma.employee.create({
+    const employee = await prisma.$transaction(async tx => {
+      await lockCompany(tx, auth.companyId!)
+      if (isActive !== false && SCHEDULABLE_ROLES.some(r => r === resolvedRole)) await assertProfessionalCapacity(tx, auth.companyId!)
+      return tx.employee.create({
       data: {
         name: String(name).trim(),
         email: email ? String(email).trim() : null,
@@ -97,7 +100,7 @@ export async function POST(request: NextRequest) {
         commissionRate: commissionRate !== undefined ? Number(commissionRate) : 0,
         hireDate: hireDate ? new Date(hireDate) : new Date(),
         isActive: isActive !== undefined ? Boolean(isActive) : true,
-        companyId: auth.companyId,
+        companyId: auth.companyId!,
         specialties: {
           create: parsedSpecialties
         }
@@ -105,6 +108,8 @@ export async function POST(request: NextRequest) {
       include: {
         specialties: true
       }
+    })
+
     })
 
     return jsonResponse(employee, { status: 201 })

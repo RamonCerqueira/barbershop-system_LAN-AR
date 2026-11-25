@@ -46,6 +46,8 @@ const getLocalDateStr = (d = new Date()) => {
 }
 
 export default function ColaboradoresPage() {
+  const [subscriptionBlocked,setSubscriptionBlocked]=useState(false)
+  const [professionalLimit,setProfessionalLimit] = useState<number | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -67,7 +69,8 @@ export default function ColaboradoresPage() {
   const loadEmployees = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiFetch('/api/employees')
+      const [res,subscription] = await Promise.all([apiFetch('/api/employees'),apiFetch('/api/subscription')])
+      if(subscription.ok){const data=await subscription.json();setProfessionalLimit(data.professionalCapacity || data.entitlements?.professionals || null);setSubscriptionBlocked(Boolean(data.subscription?.isBlocked))}
       if (res.ok) {
         const data = await res.json()
         setEmployees(Array.isArray(data) ? data : [])
@@ -192,6 +195,7 @@ export default function ColaboradoresPage() {
             Matriz de Especialidades
           </Link>
           <button
+            disabled={subscriptionBlocked}
             onClick={openModalForCreate}
             className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center transition duration-200"
           >
@@ -201,6 +205,8 @@ export default function ColaboradoresPage() {
         </div>
       </div>
 
+      {subscriptionBlocked && <p className="mb-4 rounded-xl border border-amber-400/20 p-4 text-sm text-amber-200">A assinatura está vencida. Você pode consultar a equipe e desativar os excedentes para adequar o plano antes do pagamento. Novos cadastros e outras alterações dependem da regularização.</p>}
+      {professionalLimit !== null && <p className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4 text-sm text-slate-300">{employees.filter(e=>e.isActive && ['BARBER','PODIATRY','MASSAGE'].includes(e.role)).length} de {professionalLimit} profissionais agendáveis ativos no plano. Contas administrativas não consomem esse limite. <Link href="/dashboard/assinatura" className="text-amber-300">Ver planos</Link></p>}
       <div className="bg-gray-800 border border-gray-700 rounded-xl overflow-hidden">
         {loading ? (
           <p className="text-gray-400 text-center py-12">Carregando equipe do banco...</p>
@@ -276,7 +282,7 @@ export default function ColaboradoresPage() {
                     <td className="py-4 px-4 text-right">
                       <div className="inline-flex space-x-2">
                         <button
-                          onClick={() => openModalForEdit(colab)}
+                          disabled={subscriptionBlocked} onClick={() => openModalForEdit(colab)}
                           className="text-blue-400 hover:text-blue-300 p-1"
                         >
                           <Edit size={18} />

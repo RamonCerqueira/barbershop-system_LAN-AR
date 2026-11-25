@@ -1,3 +1,4 @@
+import { SUBSCRIPTION_PLANS } from '../src/lib/plans'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -42,7 +43,7 @@ async function main() {
       address: 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP, 01310-100',
       phone: '(11) 99999-9999',
       plan: 'MONTHLY',
-      planPrice: 19.0,
+      planPrice: SUBSCRIPTION_PLANS.MONTHLY.price,
       isActive: true,
     },
   })

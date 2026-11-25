@@ -19,10 +19,10 @@ async function verifiedPayload(token: string) {
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
   if (path.startsWith('/api/')) {
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && path !== '/api/webhooks/whatsapp') {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && !['/api/webhooks/whatsapp','/api/webhooks/evolution'].includes(path)) {
       const expected = new URL(process.env.APP_URL || request.url).origin
       if (request.headers.get('origin') !== expected) return NextResponse.json({ error: 'Origem não autorizada' }, { status: 403 })
-      const bodyLimit = ['/api/settings/logo', '/api/settings/photos', '/api/profile/avatar', '/api/customer/avatar', '/api/appointment-photos'].includes(path) ? 2 * 1024 * 1024 + 65536 : 2_000_000
+      const bodyLimit = path === '/api/subscription/payments' ? 5 * 1024 * 1024 + 65536 : ['/api/settings/logo', '/api/settings/photos', '/api/profile/avatar', '/api/customer/avatar', '/api/appointment-photos'].includes(path) ? 2 * 1024 * 1024 + 65536 : 2_000_000
       if (Number(request.headers.get('content-length') || 0) > bodyLimit) return NextResponse.json({ error: 'Requisição muito grande' }, { status: 413 })
     }
     const res = NextResponse.next()

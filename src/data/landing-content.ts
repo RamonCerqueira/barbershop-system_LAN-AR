@@ -1,3 +1,4 @@
+import { formatPlanMoney } from '@/lib/plans';
 import { SUBSCRIPTION_PLANS, type PlanCode } from '@/lib/plans';
 export interface NavItem {
   label: string;
@@ -303,7 +304,7 @@ export const PRICING_PLANS: PricingPlanItem[] = [
     subtitle: 'Para começar e organizar sua agenda.',
     referenceMonthlyPrice: SUBSCRIPTION_PLANS.MONTHLY.price,
     systemCyclePrice: SUBSCRIPTION_PLANS.MONTHLY.price,
-    systemCycleLabel: `6 meses: R$ ${SUBSCRIPTION_PLANS.SEMIANNUAL.price} • 12 meses: R$ ${SUBSCRIPTION_PLANS.ANNUAL.price}`,
+    systemCycleLabel: `6 meses: R$ ${formatPlanMoney(SUBSCRIPTION_PLANS.SEMIANNUAL.price)} • 12 meses: R$ ${formatPlanMoney(SUBSCRIPTION_PLANS.ANNUAL.price)}`,
     highlighted: false,
     features: [
       'Agendamento online',
@@ -319,14 +320,15 @@ export const PRICING_PLANS: PricingPlanItem[] = [
     subtitle: 'Para barbearias em expansão.',
     referenceMonthlyPrice: SUBSCRIPTION_PLANS.PRO_MONTHLY.price,
     systemCyclePrice: SUBSCRIPTION_PLANS.PRO_MONTHLY.price,
-    systemCycleLabel: `6 meses: R$ ${SUBSCRIPTION_PLANS.PRO_SEMIANNUAL.price} • 12 meses: R$ ${SUBSCRIPTION_PLANS.PRO_ANNUAL.price}`,
+    systemCycleLabel: `6 meses: R$ ${formatPlanMoney(SUBSCRIPTION_PLANS.PRO_SEMIANNUAL.price)} • 12 meses: R$ ${formatPlanMoney(SUBSCRIPTION_PLANS.PRO_ANNUAL.price)}`,
     highlighted: true,
     badgeText: 'Em destaque',
     features: [
-      'Agenda completa',
+      'Tudo do Essencial • até 5 profissionais',
       'Caixa PDV e financeiro',
       'Comissões por profissional',
-      'Automação WhatsApp',
+      'Produtos e estoque básico',
+      'WhatsApp: até 3.000 envios/mês',
     ],
   },
   {
@@ -336,13 +338,14 @@ export const PRICING_PLANS: PricingPlanItem[] = [
     subtitle: 'Para barbearias com alta demanda.',
     referenceMonthlyPrice: SUBSCRIPTION_PLANS.ELITE_MONTHLY.price,
     systemCyclePrice: SUBSCRIPTION_PLANS.ELITE_MONTHLY.price,
-    systemCycleLabel: `6 meses: R$ ${SUBSCRIPTION_PLANS.ELITE_SEMIANNUAL.price} • 12 meses: R$ ${SUBSCRIPTION_PLANS.ELITE_ANNUAL.price}`,
+    systemCycleLabel: `6 meses: R$ ${formatPlanMoney(SUBSCRIPTION_PLANS.ELITE_SEMIANNUAL.price)} • 12 meses: R$ ${formatPlanMoney(SUBSCRIPTION_PLANS.ELITE_ANNUAL.price)}`,
     highlighted: false,
     features: [
-      'Todos os recursos',
-      'Estoque e Curva ABC',
+      'Tudo do Profissional • até 10 profissionais',
+      'Custos e Curva ABC de serviços',
       'Relatórios avançados',
-      'Suporte prioritário',
+      'WhatsApp: até 6.000 envios/mês',
+      'Campanhas com consentimento',
     ],
   },
 ];

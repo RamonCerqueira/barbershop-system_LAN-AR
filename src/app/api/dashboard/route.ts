@@ -1,3 +1,6 @@
+import { planEntitlements } from '@/lib/plans'
+import { requireCompanySubscriptionAccess } from '@/lib/subscription'
+import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -10,6 +13,8 @@ export async function GET(request: NextRequest) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
 
+    const subscription = await requireCompanySubscriptionAccess(auth.companyId)
+    const finance = planEntitlements(subscription.plan,subscription.isTrial).features.includes('finance')
     const companyId = auth.companyId
     const now = new Date()
 
@@ -117,8 +122,8 @@ export async function GET(request: NextRequest) {
     return jsonResponse({
       stats: {
         todayAppointments: todayAppointmentsList.length,
-        todayRevenue,
-        monthlyRevenue,
+        todayRevenue: finance ? todayRevenue : null,
+        monthlyRevenue: finance ? monthlyRevenue : null,
         totalClients,
         pendingAppointments,
         completedAppointments
@@ -133,11 +138,9 @@ export async function GET(request: NextRequest) {
         status: apt.status,
         price: apt.price
       })),
-      revenueChart
+      financeAvailable: finance,
+      revenueChart: finance ? revenueChart : []
     })
-  } catch (error) {
-    console.error('Erro ao carregar dashboard:', error)
-    return jsonResponse({ error: 'Erro ao carregar dados do dashboard' }, { status: 500 })
-  }
+  } catch (error) { return apiError(error) }
 }
 

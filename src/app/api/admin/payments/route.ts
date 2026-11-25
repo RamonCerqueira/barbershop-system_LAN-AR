@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
             ? { status: statusFilter as 'PENDING' | 'APPROVED' | 'REJECTED' }
             : undefined,
         include: {
+          contractAcceptance:{select:{id:true,kind:true,documentHash:true,acceptedAt:true}},
           company: {
             select: {
               id: true,

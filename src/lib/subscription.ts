@@ -1,3 +1,6 @@
+import { digest } from './security'
+import { commercialContract, verifyContractConsent, type ContractConsent } from './contracts'
+import { planEntitlements } from './plans'
 import { Plan, Prisma, SubscriptionStatus } from '@prisma/client'
 import { prisma } from './prisma'
 import { HttpError } from './http'
@@ -74,6 +77,8 @@ export interface CompanySubscriptionSnapshot {
   trialEndsAt: Date | null
   subscriptionStartedAt: Date | null
   currentPeriodEnd: Date | null
+  pendingPlan?: Plan | null
+  pendingPlanStartsAt?: Date | null
   lastPaymentAt: Date | null
   createdAt: Date
 }
@@ -82,6 +87,7 @@ export function evaluateCompanySubscription(
   company: CompanySubscriptionSnapshot,
   now: Date = new Date()
 ): SubscriptionEvaluation {
+  if (company.pendingPlan && company.pendingPlanStartsAt && company.pendingPlanStartsAt <= now) company = { ...company, plan: company.pendingPlan }
   const planInfo = SUBSCRIPTION_PLANS[company.plan] || SUBSCRIPTION_PLANS.MONTHLY
   const trialStart = company.trialStartedAt || company.createdAt
   const trialEndsAt = company.trialEndsAt || addDays(trialStart, TRIAL_DAYS)
@@ -200,7 +206,12 @@ export function evaluateCompanySubscription(
   }
 }
 
+export async function settleScheduledPlan(companyId: string) {
+  await prisma.$executeRaw`UPDATE companies SET "plan" = "pendingPlan", "planPrice" = COALESCE("pendingPlanPrice", "planPrice"), "pendingPlanPrice" = NULL, "pendingPlan" = NULL, "pendingPlanStartsAt" = NULL, "updatedAt" = (NOW() AT TIME ZONE 'UTC') WHERE id = ${companyId} AND "pendingPlan" IS NOT NULL AND "pendingPlanStartsAt" <= (NOW() AT TIME ZONE 'UTC')`
+}
+
 export async function getCompanySubscriptionStatus(companyId: string) {
+  await settleScheduledPlan(companyId)
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
@@ -215,6 +226,8 @@ export async function getCompanySubscriptionStatus(companyId: string) {
       trialEndsAt: true,
       subscriptionStartedAt: true,
       currentPeriodEnd: true,
+      pendingPlan: true,
+      pendingPlanStartsAt: true,
       lastPaymentAt: true,
       createdAt: true
     }
@@ -229,6 +242,7 @@ export async function getCompanySubscriptionStatus(companyId: string) {
   const [payments, notificationLogs] = await Promise.all([
     prisma.subscriptionPayment.findMany({
       where: { companyId },
+      include:{contractAcceptance:{select:{id:true,kind:true,documentHash:true,acceptedAt:true}}},
       orderBy: { createdAt: 'desc' },
       take: 25
     }),
@@ -247,8 +261,12 @@ export async function getCompanySubscriptionStatus(companyId: string) {
       isActive: company.isActive
     },
     subscription: evaluation,
+    entitlements: planEntitlements(evaluation.plan, evaluation.isTrial),
+    professionalCapacity: Math.min(planEntitlements(evaluation.plan,evaluation.isTrial).professionals,company.pendingPlan?planEntitlements(company.pendingPlan).professionals:10),
+    pendingPlan: company.pendingPlan,
+    pendingPlanStartsAt: company.pendingPlanStartsAt,
     pix: PIX_PAYMENT_CONFIG,
-    plans: AVAILABLE_PLANS.map(plan => quotePlan(company.plan, plan.code, Boolean(company.subscriptionStartedAt))),
+    plans: AVAILABLE_PLANS.map(plan => quotePlan(evaluation.plan, plan.code, Boolean(company.subscriptionStartedAt))),
     payments: payments.map((p) => ({
       ...p,
       amount: Number(p.amount)
@@ -258,6 +276,7 @@ export async function getCompanySubscriptionStatus(companyId: string) {
 }
 
 export async function requireCompanySubscriptionAccess(companyId: string) {
+  await settleScheduledPlan(companyId)
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
@@ -270,6 +289,8 @@ export async function requireCompanySubscriptionAccess(companyId: string) {
       trialEndsAt: true,
       subscriptionStartedAt: true,
       currentPeriodEnd: true,
+      pendingPlan: true,
+      pendingPlanStartsAt: true,
       lastPaymentAt: true,
       createdAt: true
     }
@@ -300,6 +321,7 @@ export async function submitPixPayment(params: {
   proofFilePath?: string | null
   proofFileName?: string | null
   proofMimeType?: string | null
+  legalAcceptance: ContractConsent
 }) {
   const planInfo = SUBSCRIPTION_PLANS[params.plan]
   if (!planInfo || !isAvailablePlan(params.plan)) {
@@ -307,13 +329,19 @@ export async function submitPixPayment(params: {
   }
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM companies WHERE id = ${params.companyId} FOR UPDATE`
     const company = await tx.company.findUnique({ where: { id: params.companyId } })
     if (!company) {
       throw new HttpError(404, 'Empresa não encontrada.')
     }
 
-    const quote = quotePlan(company.plan, params.plan as import('./plans').PlanCode, Boolean(company.subscriptionStartedAt))
+    if (company.pendingPlan && company.pendingPlanStartsAt && company.pendingPlanStartsAt > new Date()) throw new HttpError(409, 'Existe uma mudança de plano já paga e agendada. Aguarde sua vigência antes de contratar outro ciclo.')
+    const effective = evaluateCompanySubscription(company)
+    const quote = quotePlan(effective.plan, params.plan as import('./plans').PlanCode, Boolean(company.subscriptionStartedAt))
 
+    const activeProfessionals = await tx.employee.count({where:{companyId:company.id,isActive:true,role:{in:['BARBER','PODIATRY','MASSAGE']}}})
+    const cap = planEntitlements(params.plan).professionals
+    if (activeProfessionals > cap) throw new HttpError(409, `Este plano permite até ${cap} profissionais ativos. Desative os excedentes antes de enviar o pagamento.`)
     const existingPending = await tx.subscriptionPayment.findFirst({
       where: {
         companyId: params.companyId,
@@ -329,11 +357,16 @@ export async function submitPixPayment(params: {
       )
     }
 
+    if (!params.legalAcceptance) throw new HttpError(400,'Aceite do contrato obrigatório.')
+    const document = commercialContract(company,params.plan as import('./plans').PlanCode,params.legalAcceptance.actor)
+    verifyContractConsent(params.legalAcceptance,document)
     const payment = await tx.subscriptionPayment.create({
       data: {
         companyId: params.companyId,
         plan: planInfo.code,
         amount: quote.price,
+        baseAmount: quote.basePrice,
+        discountPercent: quote.discountPercent,
         status: 'PENDING',
         paymentMethod: 'PIX',
         pixKey: PIX_PAYMENT_CONFIG.key,
@@ -346,6 +379,7 @@ export async function submitPixPayment(params: {
       }
     })
 
+    if (document && params.legalAcceptance) await tx.contractAcceptance.create({data:{companyId:company.id,actorId:params.legalAcceptance.actor.id,actorName:params.legalAcceptance.actor.name,actorEmail:params.legalAcceptance.actor.email,kind:document.kind,version:document.version,privacyVersion:document.privacyVersion,documentHash:document.hash,content:document.content,plan:payment.plan,amount:payment.amount,paymentId:payment.id}})
     await tx.notification.create({
       data: {
         companyId: params.companyId,
@@ -375,14 +409,18 @@ export async function reviewSubscriptionPayment(params: {
   return prisma.$transaction(async (tx) => {
     const payment = await tx.subscriptionPayment.findUnique({
       where: { id: params.paymentId },
-      include: { company: true }
+      include: { company: true, contractAcceptance:true }
     })
 
     if (!payment) {
       throw new HttpError(404, 'Solicitação de pagamento não encontrada.')
     }
 
-    if (payment.status !== 'PENDING') {
+    await tx.$queryRaw`SELECT id FROM companies WHERE id = ${payment.companyId} FOR UPDATE`
+    const lockedCompany = await tx.company.findUniqueOrThrow({where:{id:payment.companyId}})
+    payment.company = lockedCompany
+    const freshPayment = await tx.subscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})
+    if (freshPayment.status !== 'PENDING') {
       throw new HttpError(409, 'Esta solicitação de pagamento já foi analisada anteriormente.')
     }
 
@@ -419,11 +457,22 @@ export async function reviewSubscriptionPayment(params: {
       return { payment: rejected, company: payment.company }
     }
 
+    const acceptance = payment.contractAcceptance
+    // Historical requests predate versioned acceptance. Never fabricate an old signature or reprice them.
+    // New requests cannot be created through the service/API without verified consent.
+    if (acceptance && (digest(acceptance.content)!==acceptance.documentHash || acceptance.plan !== payment.plan || Number(acceptance.amount)!==Number(payment.amount))) throw new HttpError(409,'As condições do pagamento não correspondem ao contrato aceito.')
     const planInfo = SUBSCRIPTION_PLANS[payment.plan]
     const baseStart =
       payment.company.currentPeriodEnd && payment.company.currentPeriodEnd.getTime() > now.getTime()
         ? payment.company.currentPeriodEnd
         : now
+    const effectivePlan = evaluateCompanySubscription(payment.company, now).plan
+    const from = SUBSCRIPTION_PLANS[effectivePlan], to = SUBSCRIPTION_PLANS[payment.plan]
+    const downgrade = baseStart > now && (to.rank < from.rank || to.rank === from.rank && to.months < from.months)
+    const cap = planEntitlements(payment.plan).professionals
+    const count = await tx.employee.count({where:{companyId:payment.companyId,isActive:true,role:{in:['BARBER','PODIATRY','MASSAGE']}}})
+    if (count > cap) throw new HttpError(409, `Desative profissionais excedentes antes de aprovar este plano (limite: ${cap}).`)
+    if (payment.company.pendingPlan && payment.company.pendingPlanStartsAt && payment.company.pendingPlanStartsAt > now) throw new HttpError(409, 'Já existe uma mudança paga agendada para esta empresa.')
     const periodEnd = subscriptionPeriodEnd(baseStart, payment.plan)
 
     const approved = await tx.subscriptionPayment.update({
@@ -442,8 +491,11 @@ export async function reviewSubscriptionPayment(params: {
       where: { id: payment.companyId },
       data: {
         isActive: true,
-        plan: payment.plan,
-        planPrice: SUBSCRIPTION_PLANS[payment.plan].price,
+        plan: downgrade ? effectivePlan : payment.plan,
+        pendingPlan: downgrade ? payment.plan : null,
+        pendingPlanPrice: downgrade ? payment.amount : null,
+        pendingPlanStartsAt: downgrade ? baseStart : null,
+        planPrice: downgrade ? payment.company.planPrice : payment.amount,
         subscriptionStatus: 'ACTIVE',
         subscriptionStartedAt: payment.company.subscriptionStartedAt || now,
         currentPeriodEnd: periodEnd,
@@ -465,7 +517,7 @@ export async function reviewSubscriptionPayment(params: {
         companyId: payment.companyId,
         type: 'PAYMENT',
         title: 'Pagamento PIX aprovado!',
-        message: `Seu plano ${planInfo.name} foi confirmado com sucesso. Próximo vencimento em ${formatBrDate(periodEnd)}.`
+        message: `Seu plano ${planInfo.name} foi confirmado com sucesso.${downgrade ? ` A redução entra em vigor em ${formatBrDate(baseStart)}.` : ''} Próximo vencimento em ${formatBrDate(periodEnd)}.`
       }
     })
 

@@ -98,15 +98,15 @@ export function Footer() {
               <li className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-[#FF7900] shrink-0" />
                 <a
-                  href="mailto:contato@barbeariapro.com.br"
+                  href="mailto:redetech.ofc@gmail.com"
                   className="hover:text-white transition-colors"
                 >
-                  contato@barbeariapro.com.br
+                  redetech.ofc@gmail.com
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="w-3.5 h-3.5 text-[#FF7900] shrink-0" />
-                <span>Suporte Comercial Seg–Sáb, 08h às 20h</span>
+                <span>Atendimento e privacidade por e-mail</span>
               </li>
               <li className="flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5 text-[#FF7900] shrink-0" />
@@ -118,7 +118,10 @@ export function Footer() {
 
         <div className="pt-6 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} BarbeariaPro. Todos os direitos reservados.</p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-6">
+            <Link href="/planos" className="hover:text-white">Planos e recursos</Link>
+            <Link href="/contrato" className="hover:text-white">Contrato</Link>
+            <Link href="/privacidade" className="hover:text-white">Privacidade</Link>
             <Link href="/cliente" className="hover:text-white transition-colors">
               Portal do Cliente
             </Link>

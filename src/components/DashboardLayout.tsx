@@ -28,6 +28,7 @@ import {
   ShieldCheck
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { featureForPath, type PlanFeature } from '@/lib/plans'
 import { apiFetch } from '@/lib/api'
 
 interface NotificationItem {
@@ -50,6 +51,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [showNotifications, setShowNotifications] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [userInfo, setUserInfo] = useState<{ name?: string; companyName?: string; email?: string; role?: string; avatarUrl?: string | null } | null>(null)
+  const [features, setFeatures] = useState<PlanFeature[] | null>(null)
   const [branding, setBranding] = useState<{ name: string; logoUrl: string | null } | null>(null)
   const [subscriptionInfo, setSubscriptionInfo] = useState<{
     effectiveStatus: string
@@ -84,6 +86,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         const subData = await subRes.json()
         if (subData?.subscription) {
           setSubscriptionInfo(subData.subscription)
+          setFeatures(subData.entitlements?.features || [])
         }
       }
     } catch (err) {
@@ -182,6 +185,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings, exact: false }
   ]
   const moreItems = [
+    { href: '/dashboard/contratos', label: 'Contratos e Aditivos', icon: ShieldCheck },
     { href: '/dashboard/painel', label: 'Painel do Salão', icon: Monitor },
     { href: '/dashboard/agendamentos-calendario', label: 'Calendário', icon: CalendarDays },
     { href: '/dashboard/operacao', label: 'Operação & Clientes', icon: Users },
@@ -191,6 +195,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     { href: '/dashboard/produtos', label: 'Produtos', icon: Package },
     { href: '/dashboard/campanhas-whatsapp', label: 'Campanhas WhatsApp', icon: MessageSquare }
   ]
+  const pageFeature = featureForPath(pathname)
+  const featureBlocked = Boolean(pageFeature && features && !features.includes(pageFeature))
   const isDashboardHome = pathname === '/dashboard'
   const displayName = userInfo?.name?.trim().split(/\s+/)[0] || 'Admin'
   const today = new Date()
@@ -232,7 +238,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <nav className="dashboard-nav min-h-0 flex-1 overflow-y-auto px-3" aria-label="Navegação principal">
           <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Menu principal</p>
           <ul className="dashboard-nav-list">
-            {[...navItems.slice(0, -1), ...moreItems.map(item => ({ ...item, exact: true })), ...(userInfo?.role === 'ADMIN' ? [navItems[navItems.length - 1]] : [])].map((item) => {
+            {[...navItems.slice(0, -1), ...moreItems.map(item => ({ ...item, exact: true })), ...(userInfo?.role === 'ADMIN' ? [navItems[navItems.length - 1]] : [])].filter(item => { const feature = featureForPath(item.href); return (item.href!=='/dashboard/contratos' || userInfo?.role==='ADMIN') && (!feature || features?.includes(feature)) }).map((item) => {
               const Icon = item.icon
               const isActive = item.exact
                 ? pathname === item.href
@@ -401,7 +407,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           )}
 
-          {subscriptionInfo?.isBlocked && pathname !== '/dashboard/assinatura' ? (
+          {subscriptionInfo?.isBlocked && !['/dashboard/assinatura','/dashboard/colaboradores','/dashboard/contratos'].includes(pathname) ? (
             <div className="mx-auto my-10 max-w-xl rounded-[18px] border border-red-500/30 bg-gradient-to-br from-[#181d24] to-[#10141a] p-8 text-center shadow-2xl">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/15 text-red-400">
                 <Lock size={28} />
@@ -418,7 +424,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Link>
               </div>
             </div>
-          ) : (
+          ) : featureBlocked ? (
+            <section className="mx-auto my-10 max-w-xl rounded-2xl border border-amber-400/20 bg-white/5 p-8 text-center"><Lock className="mx-auto mb-4 text-amber-300" size={28}/><h2 className="text-xl font-bold">Recurso disponível em outro plano</h2><p className="mt-3 text-sm text-slate-300">Consulte os benefícios e escolha o plano adequado para sua barbearia.</p><Link href="/dashboard/assinatura" className="mt-5 inline-block rounded-xl bg-amber-400 px-5 py-3 font-bold text-black">Ver planos</Link></section>
+          ) : pageFeature && features === null ? <p role="status" className="p-8 text-slate-400">Verificando seu plano…</p> : (
             children
           )}
         </div>

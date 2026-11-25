@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
+import LegalAcceptance, {type LegalConsent} from '@/components/LegalAcceptance'
 import type { Plan } from '@prisma/client'
-import { SUBSCRIPTION_PLANS, isAvailablePlan } from '@/lib/plans'
+import { SUBSCRIPTION_PLANS, isAvailablePlan, planEntitlements } from '@/lib/plans'
 
 import React, { useCallback, useEffect, useState } from 'react'
 import {
@@ -41,6 +43,7 @@ interface PlanOption {
 }
 
 interface PaymentRecord {
+  contractAcceptance: {id:string;kind:string;documentHash:string;acceptedAt:string}|null
   id: string
   plan: Plan
   amount: number
@@ -81,6 +84,8 @@ interface SubscriptionPayload {
     beneficiary: string
     institution: string
   }
+  pendingPlan: Plan | null
+  pendingPlanStartsAt: string | null
   plans: PlanOption[]
   payments: PaymentRecord[]
 }
@@ -91,6 +96,8 @@ export default function AssinaturaPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan>('MONTHLY')
   const [payerNote, setPayerNote] = useState('')
   const [proofFile, setProofFile] = useState<File | null>(null)
+  const [legalConsent,setLegalConsent]=useState<LegalConsent|null>(null)
+  const updateConsent=useCallback((value:LegalConsent)=>setLegalConsent(value),[])
   const [submitting, setSubmitting] = useState(false)
   const [copiedPix, setCopiedPix] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -141,6 +148,9 @@ export default function AssinaturaPage() {
       const formData = new FormData()
       formData.append('plan', selectedPlan)
       formData.append('payerNote', payerNote.trim())
+      formData.append('acceptContract',String(Boolean(legalConsent?.accepted && legalConsent.plan===selectedPlan)))
+      formData.append('contractHash',legalConsent?.hash || '')
+      formData.append('contractVersion',legalConsent?.version || '')
       if (proofFile) {
         formData.append('proof', proofFile)
       }
@@ -248,7 +258,13 @@ export default function AssinaturaPage() {
 
       {/* Status atual da assinatura */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <SaasSectionCard
+        <div className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5 text-sm text-slate-300">
+        <p>Sete dias de teste com recursos Elite, sem WhatsApp automático. Após o teste, valem os recursos do plano pago. Semestral tem 10% e anual 15% de desconto; o total do ciclo é pago via PIX.</p>
+        <p className="mt-2">Upgrade elegível semestral ou anual recebe 10% adicional nesta contratação. O upgrade libera recursos após aprovação e soma o ciclo ao período já pago. Reduções entram na próxima renovação e exigem adequar os profissionais ativos.</p>
+        {data?.pendingPlan && <p className="mt-2 font-semibold text-amber-300">Mudança agendada: {SUBSCRIPTION_PLANS[data.pendingPlan].name}, a partir de {data.pendingPlanStartsAt ? new Date(data.pendingPlanStartsAt).toLocaleDateString('pt-BR') : 'sua renovação'}.</p>}
+        <div className="mt-4 grid gap-3 md:grid-cols-3">{(['MONTHLY','PRO_MONTHLY','ELITE_MONTHLY'] as const).map(code=><div key={code} className="rounded-xl border border-white/10 p-3"><strong>{SUBSCRIPTION_PLANS[code].name.split(' — ')[0]}</strong><p className="mt-1">Até {planEntitlements(code).professionals} profissionais ativos.</p><p className="mt-1 text-xs">{code==='MONTHLY'?'Agenda, clientes, histórico, link e portal do cliente.':code==='PRO_MONTHLY'?'Tudo do Essencial, caixa, financeiro, comissões, produtos, estoque e 3.000 envios WhatsApp/mês.':'Tudo do Profissional, custos, Curva ABC de serviços, análises avançadas, campanhas e 6.000 envios WhatsApp/mês.'}</p></div>)}</div>
+      </div>
+      <SaasSectionCard
           title="Situação da Assinatura"
           icon={<ShieldCheck size={20} />}
           className="lg:col-span-1"
@@ -442,7 +458,9 @@ export default function AssinaturaPage() {
                     />
                   </SaasField>
 
+                  <LegalAcceptance plan={selectedPlan} onChange={updateConsent}/>
                   <SaasSubmitButton
+                    disabled={!legalConsent?.accepted || legalConsent.plan!==selectedPlan}
                     loading={submitting}
                     loadingText="Enviando solicitação..."
                     className="w-full"
@@ -456,6 +474,8 @@ export default function AssinaturaPage() {
         </SaasSectionCard>
       </div>
 
+      <Link href="/dashboard/colaboradores" className="mr-5 inline-flex items-center gap-2 text-sm font-semibold text-amber-300">Adequar profissionais ao limite do plano</Link>
+      <Link href="/dashboard/contratos" className="inline-flex items-center gap-2 text-sm font-semibold text-amber-300"><FileText size={18}/>Consultar contratos e aditivos aceitos</Link>
       {/* Histórico de Pagamentos */}
       <SaasSectionCard
         title="Histórico de Pagamentos da Assinatura"
@@ -524,6 +544,7 @@ export default function AssinaturaPage() {
                         `Aprovado por ${p.reviewedByName || 'SuperAdmin'} em ${formatBr(p.reviewedAt)} • Válido até ${formatBr(p.periodEnd)}`}
                       {p.status === 'REJECTED' && `Motivo: ${p.rejectionReason || 'Não informado'}`}
                       {p.status === 'PENDING' && (p.payerNote || 'Aguardando verificação do administrador')}
+                      {p.contractAcceptance && <a href={`/api/contracts/${p.contractAcceptance.id}?download=true`} className="mt-2 block text-amber-300 underline">Baixar contrato / aditivo aceito</a>}
                     </td>
                   </tr>
                 ))}

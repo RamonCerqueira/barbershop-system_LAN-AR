@@ -47,15 +47,24 @@ async function main() {
     assert.equal(companyInput.safeParse({...signupData,acceptTerms:false}).success,false);
     assert.equal(companyInput.safeParse({...signupData,acceptTerms:true}).success,true);
   });
+  await check('registration refuses missing contract version without creating a partial account',async()=>{
+    const register=require('../src/app/api/companies/register/route.ts').POST;
+    const response=await register(new NextRequest('http://localhost/api/companies/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...signupData,acceptTerms:true})}));
+    assert.equal(response.status,409);
+    assert.equal(await db.company.count({where:{email:signupData.email}}),0);
+  });
   await check('company registration accepts consent and creates the account',async()=>{
     const register=require('../src/app/api/companies/register/route.ts').POST;
-    const request=new NextRequest('http://localhost/api/companies/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...signupData,acceptTerms:true})});
+    const document=require('../src/lib/contracts.ts').signupContract(signupData.plan);
+    const request=new NextRequest('http://localhost/api/companies/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...signupData,acceptTerms:true,contractHash:document.hash,contractVersion:document.version})});
     const response=await register(request);
     assert.equal(response.status,201);
     assert.match(response.headers.get('set-cookie')||' /',/barberpro_token=.*HttpOnly/i);
     const body=await response.json();
     assert.equal(body.user.email,signupData.email);
     assert.equal((await db.company.findUnique({where:{id:body.companyId}})).email,signupData.email);
+    const acceptance=await db.contractAcceptance.findFirst({where:{companyId:body.companyId}});
+    assert.equal(acceptance.documentHash,document.hash);assert.equal(acceptance.kind,'SIGNUP');assert.equal(acceptance.actorId,body.user.id);
   });
   const user = await db.user.create({ data: {companyId:a.id,email:'admin@example.invalid',password:await auth.hashPassword('test-password-12345'),name:'Admin',role:'ADMIN'} });
   const emp = await db.employee.create({data:{companyId:a.id,name:'Barber',phone:'5511999999999',role:'BARBER',hireDate:new Date()}});

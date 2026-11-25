@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
       address,
       phone,
       plan,
-      password
+      password,
+      legalAcceptance:{accepted:acceptTerms,hash:data.contractHash || '',version:data.contractVersion || ''}
     })
 
     const authUser: AuthUserPayload = {

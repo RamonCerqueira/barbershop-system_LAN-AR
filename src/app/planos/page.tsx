@@ -1,0 +1,4 @@
+import Link from 'next/link'
+import PlanComparison from '@/components/PlanComparison'
+export const metadata={title:'Planos e recursos | BarberPro',description:'Compare Essencial, Profissional e Elite: recursos, profissionais, WhatsApp, valores e condições de contratação.'}
+export default function PlansPage(){return <main className="min-h-screen bg-[#080808] px-4 py-10 text-white"><div className="mx-auto max-w-6xl"><Link href="/" className="text-sm text-orange-300">← BarberPro</Link><header className="mb-10 mt-10 max-w-3xl"><p className="text-xs font-bold uppercase tracking-[.2em] text-orange-400">Seu próximo passo</p><h1 className="mt-4 text-4xl font-bold sm:text-5xl">O plano certo para o momento da sua barbearia.</h1><p className="mt-5 text-base leading-relaxed text-zinc-400">Comece pela agenda, acrescente controle financeiro ou acompanhe a rentabilidade dos seus serviços. Compare o que está incluído antes de escolher.</p></header><PlanComparison/></div></main>}

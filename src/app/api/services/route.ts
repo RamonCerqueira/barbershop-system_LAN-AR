@@ -1,3 +1,4 @@
+import { planEntitlements } from '@/lib/plans'
 import { serviceInput } from '@/lib/validation'
 import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
     if (!auth || !auth.companyId) {
       return jsonResponse({ error: 'Não autorizado' }, { status: 401 })
     }
-    await requireCompanySubscriptionAccess(auth.companyId)
+    const subscription = await requireCompanySubscriptionAccess(auth.companyId)
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')?.trim() || ''
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
           : {})
       },
       include: {
-        serviceCosts: true,
+        serviceCosts: planEntitlements(subscription.plan,subscription.isTrial).features.includes('analytics'),
         _count: {
           select: { appointments: true }
         }

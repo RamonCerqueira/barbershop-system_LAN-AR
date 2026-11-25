@@ -22,6 +22,8 @@ export const companyInput = z.object({
   fullName: z.string().trim().min(2).max(100), birthDate: dateInput.refine(v => v < new Date().toISOString().slice(0,10), 'Nascimento inválido'),
   address: z.string().trim().min(5).max(500), phone: phoneInput,
   plan: z.enum(PLAN_CODES), password: passwordInput,
+  contractHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  contractVersion: z.string().max(50).optional(),
   acceptTerms: z.boolean().refine(value => value, 'Você precisa aceitar os termos e a política de privacidade.')
 })
 export const bookingInput = z.object({

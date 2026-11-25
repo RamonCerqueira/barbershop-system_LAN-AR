@@ -1,6 +1,6 @@
 import { prisma } from './prisma'
 import { sendSubscriptionMail } from './mail'
-import { queueMessage } from './messages'
+import { queuePlatformMessage } from './messages'
 import {
   brazilDateString,
   diffCalendarDaysBr,
@@ -165,7 +165,7 @@ export async function dispatchSubscriptionNotification(params: {
     let errorMessage: string | null = null
     if (process.env.WHATSAPP_API_URL && process.env.WHATSAPP_API_TOKEN) {
       try {
-        await queueMessage(params.companyId, params.phone, message, waKey)
+        await queuePlatformMessage(params.companyId, params.phone, message, waKey)
         status = 'SENT'
       } catch (err: any) {
         status = 'FAILED'
@@ -206,7 +206,7 @@ export async function runDailySubscriptionReminders(now: Date = new Date()) {
   for (const company of companies) {
     examined++
     const evaluation = evaluateCompanySubscription(company, now)
-    const planInfo = SUBSCRIPTION_PLANS[company.plan] || SUBSCRIPTION_PLANS.MONTHLY
+    const planInfo = SUBSCRIPTION_PLANS[evaluation.plan] || SUBSCRIPTION_PLANS.MONTHLY
     const dueDateStr = brazilDateString(evaluation.expiresAt)
     const dueDateFormatted = formatBrDate(evaluation.expiresAt)
     const diffDays = diffCalendarDaysBr(evaluation.expiresAt, now)

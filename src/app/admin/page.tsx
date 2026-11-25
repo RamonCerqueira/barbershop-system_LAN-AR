@@ -58,6 +58,7 @@ interface CompanyItem {
 }
 
 interface AdminPaymentItem {
+  contractAcceptance: {id:string;kind:string;documentHash:string;acceptedAt:string}|null
   id: string
   companyId: string
   plan: Plan
@@ -707,6 +708,7 @@ export default function AdminDashboard() {
                           <div className="font-bold text-[#f5b51b]">
                             {formatCurrencyBRL(p.amount)}
                           </div>
+                          {p.contractAcceptance && <a href={`/api/contracts/${p.contractAcceptance.id}?download=true`} className="mt-2 block text-xs text-amber-300 underline">Contrato / aditivo aceito</a>}
                         </td>
                         <td className="px-5 py-4 text-xs text-slate-300">
                           {formatBr(p.submittedAt)}
@@ -896,8 +898,9 @@ export default function AdminDashboard() {
                   className={saasInputClass}
                 />
               </SaasField>
-              <SaasField label="Plano">
+              <SaasField label="Plano" hint="Mudanças exigem contrato ou aditivo aceito pela barbearia e aprovação do pagamento correspondente.">
                 <select
+                  disabled
                   value={editingCompany.plan}
                   onChange={(e) =>
                     setEditingCompany({

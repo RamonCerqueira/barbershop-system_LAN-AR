@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-21T19:10:20.152Z",
+  "at": "2026-11-25T19:35:03.450Z",
   "database": "isolated disposable PostgreSQL database",
   "results": [
     {
@@ -8,6 +8,10 @@
     },
     {
       "name": "company registration requires explicit terms acceptance",
+      "status": "PASSED"
+    },
+    {
+      "name": "registration refuses missing contract version without creating a partial account",
       "status": "PASSED"
     },
     {

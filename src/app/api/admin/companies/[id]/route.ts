@@ -1,4 +1,7 @@
-import { SUBSCRIPTION_PLANS, isAvailablePlan } from '@/lib/plans'
+import { lockCompany } from '@/lib/entitlements'
+import { HttpError, apiError } from '@/lib/http'
+import { settleScheduledPlan } from '@/lib/subscription'
+import { isAvailablePlan } from '@/lib/plans'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -17,6 +20,7 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
+    await settleScheduledPlan(id)
     const existing = await prisma.company.findUnique({ where: { id } })
     if (!existing) {
       return jsonResponse({ error: 'Empresa não encontrada' }, { status: 404 })
@@ -26,14 +30,14 @@ export async function PATCH(
       return jsonResponse({ error: 'Plano inválido' }, { status: 400 })
     }
 
-    const newPlan =
-      body.plan && isAvailablePlan(body.plan)
-        ? body.plan
-        : existing.plan
-
+    if (body.plan !== undefined && body.plan !== existing.plan) throw new HttpError(409,'Mudanças de plano exigem contrato ou aditivo aceito pela barbearia na página Assinatura & PIX. Aprove o pagamento correspondente para aplicar a alteração.')
     const newEmail = body.email !== undefined ? String(body.email).trim() : existing.email
 
     const updated = await prisma.$transaction(async (tx) => {
+      await lockCompany(tx,id)
+      const current = await tx.company.findUniqueOrThrow({where:{id}})
+      if (body.plan !== undefined && body.plan !== current.plan) throw new HttpError(409,'O plano foi atualizado. Recarregue os dados; mudanças exigem aditivo aceito pela barbearia.')
+
       const company = await tx.company.update({
         where: { id },
         data: {
@@ -41,8 +45,8 @@ export async function PATCH(
           fullName: body.fullName !== undefined ? String(body.fullName).trim() : existing.fullName,
           email: newEmail,
           phone: body.phone !== undefined ? String(body.phone).trim() : existing.phone,
-          plan: newPlan as any,
-          planPrice: SUBSCRIPTION_PLANS[newPlan as keyof typeof SUBSCRIPTION_PLANS].price,
+          plan: current.plan,
+          planPrice: current.planPrice,
           isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive
         }
       })
@@ -59,6 +63,7 @@ export async function PATCH(
 
     return jsonResponse(updated)
   } catch (error: any) {
+    if (error instanceof HttpError) return apiError(error)
     console.error('Erro ao atualizar empresa pelo admin:', error)
     if (error.code === 'P2002') {
       return jsonResponse({ error: 'Este e-mail já está em uso por outra conta' }, { status: 409 })

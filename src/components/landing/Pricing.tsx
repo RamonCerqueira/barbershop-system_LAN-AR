@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
+import { formatPlanMoney } from '@/lib/plans';
 import { PRICING_PLANS } from '@/data/landing-content';
 import { trackConversionEvent } from '@/lib/landing-utils';
 
@@ -49,7 +50,7 @@ export function Pricing() {
             </h2>
             <p className="text-sm text-[#A1A1AA] leading-relaxed">
               Escolha o plano ideal e comece hoje mesmo. Sem taxa de adesão e com liberação
-              imediata do painel.
+              imediata do painel por sete dias grátis. Mensalidade integral desde a primeira cobrança.
             </p>
           </div>
 
@@ -81,12 +82,12 @@ export function Pricing() {
                       <div className="flex items-baseline gap-1">
                         <span className="text-sm font-bold text-zinc-300">R$</span>
                         <span className="text-4xl font-extrabold text-white tracking-tight">
-                          {plan.referenceMonthlyPrice}
+                          {formatPlanMoney(plan.referenceMonthlyPrice)}
                         </span>
                         <span className="text-xs text-[#A1A1AA]">/mês</span>
                       </div>
                       <p className="text-[11px] text-[#FF9D00] font-medium mt-1">
-                        {plan.systemCycleLabel}
+                        {plan.systemCycleLabel} (totais)
                       </p>
                     </div>
 
@@ -127,6 +128,8 @@ export function Pricing() {
             })}
           </div>
         </div>
+        <Link href="/planos" className="mt-8 inline-flex items-center gap-2 rounded-xl border border-orange-400/30 px-5 py-3 text-sm font-semibold text-orange-300 hover:bg-orange-400/10">Comparar todos os recursos e condições →</Link>
+        <p className="mt-6 text-xs leading-relaxed text-zinc-400">Semestral: 10% de desconto. Anual: 15% de desconto. WhatsApp por QR Code disponível nos planos Profissional e Elite após pagamento, com um número por barbearia e cota mensal, sem cobrança excedente. Envios sujeitos à conexão e ao consentimento do cliente.</p>
       </div>
     </section>
   );

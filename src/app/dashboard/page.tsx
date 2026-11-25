@@ -87,6 +87,7 @@ const statusPresentation: Record<string, { label: string; className: string }> =
 }
 
 export default function Dashboard() {
+  const [financeAvailable,setFinanceAvailable] = useState(false)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [appointments, setAppointments] = useState<RecentAppointment[]>([])
   const [sales, setSales] = useState<SaleRecord[]>([])
@@ -107,6 +108,7 @@ export default function Dashboard() {
       ])
       if (!dashboardRes.ok) throw new Error('Dashboard indisponível')
       const dashboard = await dashboardRes.json()
+      setFinanceAvailable(Boolean(dashboard.financeAvailable))
       setStats(dashboard.stats || null)
       setAppointments(Array.isArray(dashboard.recentAppointments) ? dashboard.recentAppointments : [])
       if (salesRes.ok) {
@@ -182,7 +184,7 @@ export default function Dashboard() {
         </article>
         <article className="bd-stat-card">
           <span className="bd-stat-icon is-gold"><CircleDollarSign size={37} /></span>
-          <div className="bd-stat-copy"><strong>{loading ? '—' : money(stats?.todayRevenue ?? 0)}</strong><span>Faturamento Hoje</span></div>
+          <div className="bd-stat-copy"><strong>{loading ? '—' : financeAvailable ? money(stats?.todayRevenue ?? 0) : 'Profissional ou Elite'}</strong><span>Faturamento Hoje</span></div>
           <span className="bd-stat-note"><TrendingUp size={15} className="is-green" /> Vendas confirmadas</span>
         </article>
         <article className="bd-stat-card">
@@ -225,6 +227,7 @@ export default function Dashboard() {
           </div>
         </article>
 
+        {financeAvailable ? (
         <article className="bd-panel bd-revenue">
           <header className="bd-panel-header"><h2><ChartNoAxesColumnIncreasing /> Faturamento dos Últimos 7 Dias</h2><Link href="/dashboard/caixa" aria-label="Abrir caixa"><ArrowRight size={18} /></Link></header>
           <div className="bd-chart" role="img" aria-label="Faturamento diário dos últimos sete dias, calculado a partir de vendas confirmadas">
@@ -238,6 +241,7 @@ export default function Dashboard() {
             </div>
           </div>
         </article>
+        ) : <article className="bd-panel p-6"><h2 className="text-lg font-bold">Mais controle para sua barbearia</h2><p className="mt-3 text-sm text-slate-400">Caixa, financeiro, comissões e estoque estão disponíveis no Profissional e Elite.</p><Link href="/dashboard/assinatura" className="mt-4 inline-block text-amber-300">Conhecer os planos</Link></article>}
       </section>
 
       <section className="bd-bottom-grid" aria-label="Atividade e divulgação">

@@ -1,3 +1,5 @@
+import { isEvolutionConfigured } from '@/lib/evolution'
+import { requirePlanFeature } from '@/lib/entitlements'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { requireOperator } from '@/lib/operations'
@@ -17,7 +19,7 @@ export async function GET(request:NextRequest) {
     ])
     const reminders=(settings?.notificationConfig||{}) as Record<string,unknown>
     const config=(settings?.appointmentConfig||{}) as Record<string,unknown>
-    return jsonResponse({config:{noShowDepositEnabled:Boolean(config.noShowDepositEnabled),noShowThreshold:Number(config.noShowThreshold)||2,depositPercent:Number(config.depositPercent)||30,customerRemindersEnabled:reminders.customerRemindersEnabled!==false,reminderHours:Number(reminders.reminderHours)||24,customerEmailEnabled:Boolean(reminders.customerEmailEnabled),customerWhatsappEnabled:Boolean(reminders.customerWhatsappEnabled)},providers:{email:isMailConfigured(),whatsapp:Boolean(process.env.WHATSAPP_API_URL&&process.env.WHATSAPP_API_TOKEN)},clients,completed,waitlist})
+    return jsonResponse({config:{noShowDepositEnabled:Boolean(config.noShowDepositEnabled),noShowThreshold:Number(config.noShowThreshold)||2,depositPercent:Number(config.depositPercent)||30,customerRemindersEnabled:reminders.customerRemindersEnabled!==false,reminderHours:Number(reminders.reminderHours)||24,customerEmailEnabled:Boolean(reminders.customerEmailEnabled),customerWhatsappEnabled:Boolean(reminders.customerWhatsappEnabled)},providers:{email:isMailConfigured(),whatsapp:isEvolutionConfigured()},clients,completed,waitlist})
   }catch(e){return apiError(e)}
 }
 export async function PATCH(request:NextRequest) {
@@ -27,6 +29,7 @@ export async function PATCH(request:NextRequest) {
       z.object({action:z.literal('CONFIG'),noShowDepositEnabled:z.boolean(),noShowThreshold:z.number().int().min(1).max(20),depositPercent:z.number().int().min(1).max(100),customerRemindersEnabled:z.boolean(),reminderHours:z.number().int().min(1).max(72),customerEmailEnabled:z.boolean(),customerWhatsappEnabled:z.boolean()}),
       z.object({action:z.literal('CLIENT_DEPOSIT'),clientId:z.string().min(1),required:z.boolean()})
     ]).parse(await request.json())
+    if (data.action==='CONFIG' && data.customerWhatsappEnabled) await requirePlanFeature(auth.companyId,'whatsapp')
     await prisma.$transaction(async tx=>{
       const s=await tx.companySettings.findUnique({where:{companyId:auth.companyId}})
       if(!s)throw new HttpError(409,'Configure os horários da empresa primeiro.')

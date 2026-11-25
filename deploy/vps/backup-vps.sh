@@ -20,6 +20,7 @@ database=$(runuser -u barberpro -- "$runtime/node" --env-file="$root/shared/app.
 runuser -u postgres -- pg_dump -Fc --no-owner --no-acl "$database" > "$work/database.dump"
 tar -C "$root/shared" -czf "$work/uploads.tar.gz" uploads
 install -m 0600 "$root/shared/app.env" "$work/app.env"
+if [[ -x "$root/shared/evolution/backup.sh" ]]; then "$root/shared/evolution/backup.sh" "$work"; fi
 (cd "$work" && sha256sum database.dump uploads.tar.gz app.env > SHA256SUMS && sha256sum -c SHA256SUMS)
 runuser -u postgres -- createdb --owner=app_barberpro "$clone"
 runuser -u postgres -- pg_restore --exit-on-error --no-owner --no-acl --role=app_barberpro -d "$clone" < "$work/database.dump"

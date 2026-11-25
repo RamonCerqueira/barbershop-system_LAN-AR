@@ -1,3 +1,4 @@
+import { apiError } from '@/lib/http'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -106,13 +107,7 @@ export async function GET(request: NextRequest) {
       logs: formattedLogs,
       eligibleClients
     })
-  } catch (error) {
-    console.error('Erro ao buscar campanhas WhatsApp:', error)
-    return jsonResponse(
-      { error: 'Erro ao buscar campanhas do WhatsApp' },
-      { status: 500 }
-    )
-  }
+  } catch (error) { return apiError(error) }
 }
 
 export async function POST(request: NextRequest) {
@@ -162,11 +157,5 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     )
-  } catch (error) {
-    console.error('Erro ao criar campanha WhatsApp:', error)
-    return jsonResponse(
-      { error: 'Erro ao criar campanha do WhatsApp' },
-      { status: 500 }
-    )
-  }
+  } catch (error) { return apiError(error) }
 }

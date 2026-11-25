@@ -1,7 +1,9 @@
-'use client';
+'use client'
+import LegalAcceptance, {type LegalConsent} from '@/components/LegalAcceptance';
+import { formatPlanMoney } from '@/lib/plans';
 
 import { PLAN_CODES, AVAILABLE_PLANS, isAvailablePlan, type PlanCode } from '@/lib/plans';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -82,6 +84,7 @@ export default function ContractPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState<PlanCode>('MONTHLY');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [legalConsent,setLegalConsent]=useState<LegalConsent|null>(null);
   const [submitError, setSubmitError] = useState('');
 
   const {
@@ -100,6 +103,7 @@ export default function ContractPage() {
     },
   });
 
+  const updateConsent=useCallback((value:LegalConsent)=>{setLegalConsent(value);setValue('acceptTerms',value.accepted)},[setValue]);
   const watchedPlan = watch('plan');
   const watchedData = watch();
 
@@ -186,7 +190,9 @@ export default function ContractPage() {
           phone: data.phone.replace(/\D/g, ''),
           plan: data.plan.toUpperCase(),
           password: data.password,
-          acceptTerms: data.acceptTerms
+          acceptTerms: data.acceptTerms,
+          contractHash:legalConsent?.hash,
+          contractVersion:legalConsent?.version
         }),
       });
 
@@ -230,6 +236,7 @@ export default function ContractPage() {
               <ArrowLeft size={18} className="mr-2" />
               Voltar
             </Link>
+            <Link href="/planos" target="_blank" rel="noopener noreferrer" className="ml-4 hidden text-sm text-amber-300 underline lg:inline">Comparar recursos dos planos</Link>
             <div className="ml-6 text-xl font-black tracking-[0.14em] text-white">
               BARBER<span className="text-[#f5b51b]">PRO</span>
             </div>
@@ -242,12 +249,13 @@ export default function ContractPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Progress Bar */}
+          <div className="mx-auto max-w-6xl px-4 pt-5 lg:hidden"><Link href="/planos" target="_blank" rel="noopener noreferrer" className="text-sm text-amber-300 underline">Comparar os recursos de cada plano →</Link></div>
+      {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-400">Etapa {currentStep} de 4</div>
               <div className="text-sm text-gray-400">
-                Plano: {plans[selectedPlan].name} - R$ {plans[selectedPlan].price}/{plans[selectedPlan].period}
+                Plano: {plans[selectedPlan].name} - R$ {formatPlanMoney(plans[selectedPlan].price)}/{plans[selectedPlan].period}
               </div>
             </div>
             <div className="w-full bg-gray-800 rounded-full h-2">
@@ -497,7 +505,7 @@ export default function ContractPage() {
                       <div className="text-center">
                         <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
                         <div className="mb-4">
-                          <span className="text-3xl font-bold">R$ {plan.price}</span>
+                          <span className="text-3xl font-bold">R$ {formatPlanMoney(plan.price)}</span>
                           <span className="text-gray-300">/{plan.period}</span>
                         </div>
                         <div className="space-y-2 text-sm text-gray-300">
@@ -564,7 +572,7 @@ export default function ContractPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Valor:</span>
                         <span className="text-orange-500 font-bold text-base">
-                          R$ {plans[watchedPlan].price}/{plans[watchedPlan].period}
+                          R$ {formatPlanMoney(plans[watchedPlan].price)}/{plans[watchedPlan].period}
                         </span>
                       </div>
                     </div>
@@ -587,19 +595,7 @@ export default function ContractPage() {
                     </div>
                   )}
 
-                  <div className="flex items-start">
-                    <input
-                      {...register('acceptTerms')}
-                      type="checkbox"
-                      id="acceptTerms"
-                      aria-invalid={Boolean(errors.acceptTerms)}
-                      aria-describedby={errors.acceptTerms ? 'acceptTerms-error' : undefined}
-                      className="mt-1 mr-3 h-4 w-4 shrink-0 accent-orange-500"
-                    />
-                    <label htmlFor="acceptTerms" className="cursor-pointer text-sm text-gray-300">
-                      Li e aceito os termos de uso e a política de privacidade *
-                    </label>
-                  </div>
+                  <LegalAcceptance signup plan={watchedPlan} onChange={updateConsent}/>
                   {errors.acceptTerms && <p id="acceptTerms-error" role="alert" className="text-red-400 text-sm">{errors.acceptTerms.message}</p>}
 
                   <div className="rounded-xl border border-[#f5b51b]/25 bg-[#f5b51b]/10 p-4">
@@ -635,7 +631,7 @@ export default function ContractPage() {
               ) : (
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !legalConsent?.accepted || legalConsent.plan !== watchedPlan}
                   className="ml-auto px-8 py-3 bg-orange-500 hover:bg-orange-600 text-black font-semibold rounded-lg transition-colors disabled:opacity-50"
                 >
                   {isSubmitting ? 'Processando...' : 'Finalizar Contratação'}
