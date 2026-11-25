@@ -277,6 +277,7 @@ async function main() {
     for (const [path,file] of [['/api/products','products'],['/api/sales','sales'],['/api/commissions','commissions'],['/api/service-costs','service-costs'],['/api/whatsapp-campaigns','whatsapp-campaigns']]) {
       assert.equal((await require('../src/app/api/'+file+'/route.ts').GET(reqC(path))).status,403,path);
     }
+    assert.equal((await require('../src/app/api/products/route.ts').GET(reqC('/api/%70roducts'))).status,403);
     await db.company.update({where:{id:companyC.id},data:{plan:'PRO_MONTHLY'}});
     assert.equal((await require('../src/app/api/products/route.ts').GET(reqC('/api/products'))).status,200);
     assert.equal((await require('../src/app/api/service-costs/route.ts').GET(reqC('/api/service-costs'))).status,403);
@@ -290,6 +291,8 @@ async function main() {
     const body=i=>({name:'Profissional '+i,phone:'5511999999999',role:'BARBER',isActive:true});
     const responses=await Promise.all([1,2,3].map(i=>route.POST(reqC('/api/employees','POST',body(i)))));
     assert.deepEqual(responses.map(r=>r.status).sort(),[201,201,409]);
+    const defaultRole={...body(5)};delete defaultRole.role;
+    assert.equal((await route.POST(reqC('/api/employees','POST',defaultRole))).status,409);
     assert.equal((await route.POST(reqC('/api/employees','POST',{...body(4),role:'ADMIN'}))).status,201);
     const inactive=await db.employee.create({data:{companyId:companyC.id,name:'Inativo',phone:'5511999999999',role:'MASSAGE',isActive:false,hireDate:new Date()}});
     const item=require('../src/app/api/employees/[id]/route.ts');

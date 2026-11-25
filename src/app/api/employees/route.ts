@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       'MASSAGE',
       'OTHER'
     ]
-    const resolvedRole = validRoles.includes(role || "BARBER") ? role : 'BARBER'
+    const resolvedRole = validRoles.includes(role || "BARBER") ? (role || 'BARBER') : 'BARBER'
 
     const parsedSpecialties: { specialty: string; level: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'EXPERT' }[] =
       Array.isArray(specialties)

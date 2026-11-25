@@ -74,7 +74,7 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUserPayload
   if (decoded.type === 'COMPANY_USER' && decoded.companyId) {
     const user = await prisma.user.findFirst({ where: { id: decoded.id, companyId: decoded.companyId, isActive: true, company: { isActive: true } }, include: { company: true } })
     if (!user) return null
-    const pathname = new URL(request.url).pathname
+    const pathname = decodeURIComponent(new URL(request.url).pathname).replace(/\/{2,}/g,'/')
     if (user.role === 'EMPLOYEE' && !['/api/auth/me', '/api/auth/logout'].includes(pathname)) return null
     if (user.role !== 'ADMIN' && /^\/api\/(settings|employees|users)(\/|$)/.test(pathname) && !(pathname === '/api/settings/branding' && request.method === 'GET')) return null
     const feature = featureForPath(pathname)
