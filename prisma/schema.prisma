@@ -39,6 +39,7 @@ model Company {
   logoPath              String?
   plan                  Plan               @default(MONTHLY)
   planPrice             Decimal            @db.Decimal(12, 2)
+  additionalProfessionals Int              @default(0)
   isActive              Boolean            @default(true)
   subscriptionStatus    SubscriptionStatus @default(TRIAL)
   trialStartedAt        DateTime           @default(now())
@@ -586,6 +587,8 @@ model OutboundMessage {
 }
 
 model SubscriptionPayment {
+  additionalProfessionals Int               @default(0)
+  additionalAmount Decimal                  @default(0) @db.Decimal(12, 2)
   id              String                    @id @default(cuid())
   companyId       String
   plan            Plan

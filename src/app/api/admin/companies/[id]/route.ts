@@ -1,7 +1,7 @@
 import { lockCompany } from '@/lib/entitlements'
 import { HttpError, apiError } from '@/lib/http'
-import { settleScheduledPlan } from '@/lib/subscription'
-import { isAvailablePlan } from '@/lib/plans'
+import { evaluateCompanySubscription, settleScheduledPlan } from '@/lib/subscription'
+import { planEntitlements, isAvailablePlan } from '@/lib/plans'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -38,6 +38,17 @@ export async function PATCH(
       const current = await tx.company.findUniqueOrThrow({where:{id}})
       if (body.plan !== undefined && body.plan !== current.plan) throw new HttpError(409,'O plano foi atualizado. Recarregue os dados; mudanças exigem aditivo aceito pela barbearia.')
 
+      const additional = body.additionalProfessionals ?? current.additionalProfessionals
+      if (!Number.isSafeInteger(additional) || additional < 0 || additional > 1000) throw new HttpError(400, 'Informe de 0 a 1000 vagas adicionais.')
+      if (additional !== current.additionalProfessionals) {
+        const pending = await tx.subscriptionPayment.count({where:{companyId:id,status:'PENDING'}})
+        if (pending) throw new HttpError(409, 'Analise o PIX pendente antes de alterar os adicionais, para preservar o valor enviado pelo cliente.')
+        const active = await tx.employee.count({where:{companyId:id,isActive:true,role:{in:['BARBER','PODIATRY','MASSAGE']}}})
+        const trial = evaluateCompanySubscription(current).isTrial
+        const limit = Math.min(planEntitlements(current.plan,trial).professionals,current.pendingPlan?planEntitlements(current.pendingPlan).professionals:Infinity) + additional
+        if(active > limit) throw new HttpError(409, `Existem ${active} profissionais ativos; desative os excedentes antes de reduzir para ${limit} vagas.`)
+        await tx.auditLog.create({data:{companyId:id,actorId:auth.id,action:`PROFESSIONAL_ADDONS_CHANGED:${current.additionalProfessionals}->${additional}`,entityId:id}})
+      }
       const company = await tx.company.update({
         where: { id },
         data: {
@@ -46,6 +57,7 @@ export async function PATCH(
           email: newEmail,
           phone: body.phone !== undefined ? String(body.phone).trim() : existing.phone,
           plan: current.plan,
+          additionalProfessionals: additional,
           planPrice: current.planPrice,
           isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive
         }

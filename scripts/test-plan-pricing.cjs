@@ -26,3 +26,16 @@ assert.equal(isAvailablePlan('toString'), false);
 assert.equal(subscriptionPeriodEnd(new Date('2026-08-31T15:30:00Z'), 'SEMIANNUAL').toISOString(), '2027-02-28T15:30:00.000Z');
 assert.equal(subscriptionPeriodEnd(new Date('2028-02-29T15:30:00Z'), 'ANNUAL').toISOString(), '2029-02-28T15:30:00.000Z');
 console.log(`PASS: catalog, ${cases} pricing scenarios, upgrade totals and calendar periods`);
+
+for (const target of PLAN_CODES) {
+  const months = SUBSCRIPTION_PLANS[target].months;
+  for (const additional of [0, 1, 3, 20]) {
+    const base = quotePlan('MONTHLY', target, true);
+    const quote = quotePlan('MONTHLY', target, true, additional);
+    assert.equal(quote.additionalAmount, additional * 1990 * months / 100);
+    assert.equal(Math.round(quote.price * 100), Math.round(base.price * 100) + additional * 1990 * months);
+    assert.equal(quote.basePrice, base.basePrice);
+  }
+}
+assert.equal(quotePlan('MONTHLY', 'MONTHLY', true, 1).price, 109.8);
+console.log('PASS: professional add-ons across all cycles, independent of upgrade discounts');

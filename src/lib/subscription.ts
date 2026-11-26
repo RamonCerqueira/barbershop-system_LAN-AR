@@ -221,6 +221,7 @@ export async function getCompanySubscriptionStatus(companyId: string) {
       isActive: true,
       plan: true,
       planPrice: true,
+      additionalProfessionals: true,
       subscriptionStatus: true,
       trialStartedAt: true,
       trialEndsAt: true,
@@ -261,12 +262,13 @@ export async function getCompanySubscriptionStatus(companyId: string) {
       isActive: company.isActive
     },
     subscription: evaluation,
-    entitlements: planEntitlements(evaluation.plan, evaluation.isTrial),
-    professionalCapacity: Math.min(planEntitlements(evaluation.plan,evaluation.isTrial).professionals,company.pendingPlan?planEntitlements(company.pendingPlan).professionals:10),
+    additionalProfessionals: company.additionalProfessionals,
+    entitlements: { ...planEntitlements(evaluation.plan, evaluation.isTrial), professionals: planEntitlements(evaluation.plan, evaluation.isTrial).professionals + company.additionalProfessionals },
+    professionalCapacity: Math.min(planEntitlements(evaluation.plan,evaluation.isTrial).professionals,company.pendingPlan?planEntitlements(company.pendingPlan).professionals:Infinity) + company.additionalProfessionals,
     pendingPlan: company.pendingPlan,
     pendingPlanStartsAt: company.pendingPlanStartsAt,
     pix: PIX_PAYMENT_CONFIG,
-    plans: AVAILABLE_PLANS.map(plan => quotePlan(evaluation.plan, plan.code, Boolean(company.subscriptionStartedAt))),
+    plans: AVAILABLE_PLANS.map(plan => quotePlan(evaluation.plan, plan.code, Boolean(company.subscriptionStartedAt), company.additionalProfessionals)),
     payments: payments.map((p) => ({
       ...p,
       amount: Number(p.amount)
@@ -284,6 +286,7 @@ export async function requireCompanySubscriptionAccess(companyId: string) {
       isActive: true,
       plan: true,
       planPrice: true,
+      additionalProfessionals: true,
       subscriptionStatus: true,
       trialStartedAt: true,
       trialEndsAt: true,
@@ -337,10 +340,10 @@ export async function submitPixPayment(params: {
 
     if (company.pendingPlan && company.pendingPlanStartsAt && company.pendingPlanStartsAt > new Date()) throw new HttpError(409, 'Existe uma mudança de plano já paga e agendada. Aguarde sua vigência antes de contratar outro ciclo.')
     const effective = evaluateCompanySubscription(company)
-    const quote = quotePlan(effective.plan, params.plan as import('./plans').PlanCode, Boolean(company.subscriptionStartedAt))
+    const quote = quotePlan(effective.plan, params.plan as import('./plans').PlanCode, Boolean(company.subscriptionStartedAt), company.additionalProfessionals)
 
     const activeProfessionals = await tx.employee.count({where:{companyId:company.id,isActive:true,role:{in:['BARBER','PODIATRY','MASSAGE']}}})
-    const cap = planEntitlements(params.plan).professionals
+    const cap = planEntitlements(params.plan).professionals + company.additionalProfessionals
     if (activeProfessionals > cap) throw new HttpError(409, `Este plano permite até ${cap} profissionais ativos. Desative os excedentes antes de enviar o pagamento.`)
     const existingPending = await tx.subscriptionPayment.findFirst({
       where: {
@@ -365,6 +368,8 @@ export async function submitPixPayment(params: {
         companyId: params.companyId,
         plan: planInfo.code,
         amount: quote.price,
+        additionalProfessionals: quote.additionalProfessionals,
+        additionalAmount: quote.additionalAmount,
         baseAmount: quote.basePrice,
         discountPercent: quote.discountPercent,
         status: 'PENDING',
@@ -469,7 +474,8 @@ export async function reviewSubscriptionPayment(params: {
     const effectivePlan = evaluateCompanySubscription(payment.company, now).plan
     const from = SUBSCRIPTION_PLANS[effectivePlan], to = SUBSCRIPTION_PLANS[payment.plan]
     const downgrade = baseStart > now && (to.rank < from.rank || to.rank === from.rank && to.months < from.months)
-    const cap = planEntitlements(payment.plan).professionals
+    if (payment.additionalProfessionals !== payment.company.additionalProfessionals) throw new HttpError(409, 'Os adicionais foram alterados após o envio. Solicite um novo pagamento com o valor atualizado.')
+    const cap = planEntitlements(payment.plan).professionals + payment.additionalProfessionals
     const count = await tx.employee.count({where:{companyId:payment.companyId,isActive:true,role:{in:['BARBER','PODIATRY','MASSAGE']}}})
     if (count > cap) throw new HttpError(409, `Desative profissionais excedentes antes de aprovar este plano (limite: ${cap}).`)
     if (payment.company.pendingPlan && payment.company.pendingPlanStartsAt && payment.company.pendingPlanStartsAt > now) throw new HttpError(409, 'Já existe uma mudança paga agendada para esta empresa.')

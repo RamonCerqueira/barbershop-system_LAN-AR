@@ -84,6 +84,7 @@ export default function ContractPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPlan, setSelectedPlan] = useState<PlanCode>('MONTHLY');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [legalRevision,setLegalRevision]=useState(0);
   const [legalConsent,setLegalConsent]=useState<LegalConsent|null>(null);
   const [submitError, setSubmitError] = useState('');
 
@@ -213,6 +214,7 @@ export default function ContractPage() {
         });
         window.location.href = '/dashboard/assinatura?welcome=1';
       } else {
+        if (response.status===409) { setLegalConsent(null); setValue('acceptTerms',false); setLegalRevision(value=>value+1) }
         const errorMessage = result.error || 'Não foi possível concluir o cadastro. Verifique os dados informados.';
         setSubmitError(errorMessage);
         alert(`Erro: ${errorMessage}`);
@@ -595,7 +597,7 @@ export default function ContractPage() {
                     </div>
                   )}
 
-                  <LegalAcceptance signup plan={watchedPlan} onChange={updateConsent}/>
+                  <LegalAcceptance key={`${watchedPlan}:${legalRevision}`} signup plan={watchedPlan} onChange={updateConsent}/>
                   {errors.acceptTerms && <p id="acceptTerms-error" role="alert" className="text-red-400 text-sm">{errors.acceptTerms.message}</p>}
 
                   <div className="rounded-xl border border-[#f5b51b]/25 bg-[#f5b51b]/10 p-4">

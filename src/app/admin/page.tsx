@@ -3,7 +3,7 @@
 import { SaasModal } from '@/components/ui/SaasModal'
 
 import type { Plan } from '@prisma/client'
-import { SUBSCRIPTION_PLANS, AVAILABLE_PLANS } from '@/lib/plans'
+import { EXTRA_PROFESSIONAL_MONTHLY_PRICE, SUBSCRIPTION_PLANS, AVAILABLE_PLANS } from '@/lib/plans'
 
 import { useState, useEffect, useCallback } from 'react'
 import {
@@ -41,6 +41,10 @@ interface CompanyItem {
   cpf: string
   address: string
   plan: Plan
+  additionalProfessionals: number
+  professionalCapacity: number
+  activeProfessionals: number
+  nextPaymentAmount: number
   planPrice: number
   isActive: boolean
   status: string
@@ -58,6 +62,8 @@ interface CompanyItem {
 }
 
 interface AdminPaymentItem {
+  additionalProfessionals: number
+  additionalAmount: number
   contractAcceptance: {id:string;kind:string;documentHash:string;acceptedAt:string}|null
   id: string
   companyId: string
@@ -195,6 +201,7 @@ export default function AdminDashboard() {
       const res = await apiFetch(`/api/admin/companies/${editingCompany.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
+          additionalProfessionals: editingCompany.additionalProfessionals,
           name: editingCompany.name,
           fullName: editingCompany.owner,
           email: editingCompany.email,
@@ -203,13 +210,14 @@ export default function AdminDashboard() {
           isActive: editingCompany.isActive
         })
       })
+      if (!res.ok) { const body = await res.json(); throw new Error(body.error || 'Erro ao salvar empresa.') }
       if (res.ok) {
         setEditingCompany(null)
         setFeedback({ type: 'success', text: 'Dados da empresa atualizados com sucesso.' })
         await loadAdminData()
       }
     } catch (error) {
-      console.error('Erro ao salvar empresa:', error)
+      setFeedback({type:'error',text:error instanceof Error ? error.message : 'Erro ao salvar empresa.'})
     }
   }
 
@@ -570,7 +578,8 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4 text-slate-200">{company.owner}</td>
                         <td className="px-6 py-4">
                           <span className="rounded-full bg-[#f5b51b]/15 px-2.5 py-0.5 text-xs font-semibold text-[#f5b51b]">
-                            {getPlanName(company.plan)} ({formatCurrencyBRL(company.planPrice)})
+                            {getPlanName(company.plan)} ({formatCurrencyBRL(company.nextPaymentAmount)})
+                            <span className="block text-xs text-slate-400">{company.activeProfessionals}/{company.professionalCapacity} profissionais agendáveis ativos · {company.additionalProfessionals} adicionais</span>
                           </span>
                         </td>
                         <td className="px-6 py-4 text-xs">
@@ -708,6 +717,7 @@ export default function AdminDashboard() {
                           <div className="font-bold text-[#f5b51b]">
                             {formatCurrencyBRL(p.amount)}
                           </div>
+                          <p className="text-xs text-slate-400">{p.additionalProfessionals} adicionais · {formatCurrencyBRL(p.additionalAmount)} no ciclo</p>
                           {p.contractAcceptance && <a href={`/api/contracts/${p.contractAcceptance.id}?download=true`} className="mt-2 block text-xs text-amber-300 underline">Contrato / aditivo aceito</a>}
                         </td>
                         <td className="px-5 py-4 text-xs text-slate-300">
@@ -752,7 +762,7 @@ export default function AdminDashboard() {
                                 onClick={() => handleApprovePayment(p)}
                                 className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
                               >
-                                Aprovar
+                                Confirmar PIX e liberar
                               </button>
                               <button
                                 disabled={actionLoadingId === p.id}
@@ -871,6 +881,11 @@ export default function AdminDashboard() {
               <p><strong>Telefone:</strong> {selectedCompany.phone}</p>
               <p><strong>Endereço:</strong> {selectedCompany.address}</p>
               <p><strong>Assinatura:</strong> {selectedCompany.subscriptionStatus || 'TRIAL'}</p>
+              <p><strong>Vencimento:</strong> {formatBr(selectedCompany.subscriptionExpiresAt)}</p>
+              <p><strong>Profissionais agendáveis ativos:</strong> {selectedCompany.activeProfessionals}/{selectedCompany.professionalCapacity} ({selectedCompany.additionalProfessionals} adicionais)</p>
+              <p><strong>Próxima renovação:</strong> {formatCurrencyBRL(selectedCompany.nextPaymentAmount)}</p>
+              <p className="text-xs text-slate-400">Para desbloquear após pagamento: confira o recebimento na conta e aprove o pedido em Pagamentos PIX. A aprovação renova a vigência e libera o acesso.</p>
+              <button type="button" className={saasInputClass} onClick={() => {setSearchTerm(selectedCompany.name);setPaymentFilter('PENDING');setActiveTab('payments');setSelectedCompany(null)}}>Conferir PIX e liberar acesso</button>
               <p><strong>Cadastro:</strong> {selectedCompany.joinDate}</p>
             </div>
           </SaasModal>
@@ -880,6 +895,7 @@ export default function AdminDashboard() {
       {editingCompany && (
         <SaasModal title={<>Editar Barbearia</>} description="Gerencie os dados da barbearia e sua assinatura." icon="company" onClose={() => setEditingCompany(null)}>
             <form onSubmit={handleUpdateCompany} className="space-y-4">
+              {feedback?.type === 'error' && <SaasAlert variant="error" title="Não foi possível salvar" message={feedback.text} />}
               <SaasField label="Nome da Barbearia" required>
                 <input
                   type="text"
@@ -913,6 +929,14 @@ export default function AdminDashboard() {
                   {AVAILABLE_PLANS.map(plan => <option key={plan.code} value={plan.code}>{plan.name} ({formatCurrencyBRL(plan.price)})</option>)}
                 </select>
               </SaasField>
+              <SaasField label="Vagas adicionais de profissionais agendáveis" hint="R$ 19,90/mês por vaga. Liberação imediata; cobrança na próxima renovação, sem retroativo. Analise qualquer PIX pendente antes de alterar.">
+                <input type="number" min={0} max={1000} step={1} required value={editingCompany.additionalProfessionals} onChange={e => setEditingCompany({...editingCompany,additionalProfessionals:Number(e.target.value)})} className={saasInputClass} />
+              </SaasField>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                <p>Vagas incluídas no plano: {SUBSCRIPTION_PLANS[editingCompany.plan].rank === 0 ? 2 : SUBSCRIPTION_PLANS[editingCompany.plan].rank === 1 ? 5 : 10}</p>
+                <p>Adicional mensal: {formatCurrencyBRL(editingCompany.additionalProfessionals * EXTRA_PROFESSIONAL_MONTHLY_PRICE)}</p>
+                <p>Próxima renovação ({SUBSCRIPTION_PLANS[editingCompany.plan].months} mês(es)): {formatCurrencyBRL((Math.round(SUBSCRIPTION_PLANS[editingCompany.plan].price*100) + editingCompany.additionalProfessionals * Math.round(EXTRA_PROFESSIONAL_MONTHLY_PRICE*100) * SUBSCRIPTION_PLANS[editingCompany.plan].months)/100)}</p>
+              </div>
               <div className="flex justify-end space-x-3 pt-2 saas-modal-actions">
                 <button
                   type="button"

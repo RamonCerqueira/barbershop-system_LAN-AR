@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import LegalAcceptance, {type LegalConsent} from '@/components/LegalAcceptance'
 import type { Plan } from '@prisma/client'
-import { SUBSCRIPTION_PLANS, isAvailablePlan, planEntitlements } from '@/lib/plans'
+import { EXTRA_PROFESSIONAL_MONTHLY_PRICE, SUBSCRIPTION_PLANS, isAvailablePlan, planEntitlements } from '@/lib/plans'
 
 import React, { useCallback, useEffect, useState } from 'react'
 import {
@@ -36,6 +36,8 @@ interface PlanOption {
   name: string
   price: number
   basePrice: number
+  additionalProfessionals: number
+  additionalAmount: number
   discountPercent: number
   durationDays: number
   periodLabel: string
@@ -62,6 +64,8 @@ interface PaymentRecord {
 }
 
 interface SubscriptionPayload {
+  additionalProfessionals: number
+  professionalCapacity: number
   company: { id: string; name: string; email: string; isActive: boolean }
   subscription: {
     effectiveStatus: 'TRIAL' | 'ACTIVE' | 'PENDING_PAYMENT' | 'PAST_DUE' | 'SUSPENDED' | 'BLOCKED'
@@ -96,6 +100,7 @@ export default function AssinaturaPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan>('MONTHLY')
   const [payerNote, setPayerNote] = useState('')
   const [proofFile, setProofFile] = useState<File | null>(null)
+  const [legalRevision,setLegalRevision]=useState(0)
   const [legalConsent,setLegalConsent]=useState<LegalConsent|null>(null)
   const updateConsent=useCallback((value:LegalConsent)=>setLegalConsent(value),[])
   const [submitting, setSubmitting] = useState(false)
@@ -162,6 +167,7 @@ export default function AssinaturaPage() {
 
       const body = await res.json()
       if (!res.ok) {
+        if (res.status===409) { setLegalConsent(null); await loadSubscription(); setSelectedPlan(selectedPlan); setLegalRevision(value=>value+1) }
         throw new Error(body.error || 'Não foi possível registrar o pagamento.')
       }
 
@@ -207,7 +213,7 @@ export default function AssinaturaPage() {
   const { subscription, pix, plans, payments } = data
   const pendingPayment = payments.find((p) => p.status === 'PENDING')
   const activePlanObj = pendingPayment
-    ? { ...SUBSCRIPTION_PLANS[pendingPayment.plan], basePrice: SUBSCRIPTION_PLANS[pendingPayment.plan].price, discountPercent: 0 }
+    ? { ...SUBSCRIPTION_PLANS[pendingPayment.plan], basePrice: SUBSCRIPTION_PLANS[pendingPayment.plan].price, discountPercent: 0, additionalProfessionals: 0, additionalAmount: 0 }
     : plans.find((p) => p.code === selectedPlan) || plans[0]
   const trialProgress = subscription.isTrial
     ? Math.min(100, Math.max(8, Math.round(((7 - subscription.daysRemaining) / 7) * 100)))
@@ -256,6 +262,7 @@ export default function AssinaturaPage() {
         />
       )}
 
+      <SaasAlert variant="info" title={`${data.professionalCapacity} vagas para profissionais agendáveis ativos`} message={`${data.additionalProfessionals} vaga(s) adicionais liberadas pelo administrador, a R$ 19,90/mês cada. Os adicionais integram o próximo pagamento PIX: R$ ${(data.additionalProfessionals * EXTRA_PROFESSIONAL_MONTHLY_PRICE).toFixed(2).replace('.', ',')} por mês, multiplicados pelos meses do ciclo escolhido. Para ampliar o limite, solicite ao administrador.`} />
       {/* Status atual da assinatura */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5 text-sm text-slate-300">
@@ -378,6 +385,7 @@ export default function AssinaturaPage() {
                     <p className="text-xs text-slate-400">Descrição da Assinatura</p>
                     <p className="text-xs text-slate-200">{activePlanObj.description}</p>
                   </div>
+                  {!pendingPayment && <p className="text-xs text-slate-400">Plano: {formatCurrencyBRL(activePlanObj.price - activePlanObj.additionalAmount)} + {activePlanObj.additionalProfessionals} adicionais no ciclo: {formatCurrencyBRL(activePlanObj.additionalAmount)}</p>}
                   <div className="mt-1 flex items-center justify-between rounded-xl bg-white/5 px-3 py-2">
                     <span className="text-xs text-slate-300">Valor a pagar:</span>
                     <span className="text-lg font-extrabold text-[#f5b51b]">
@@ -458,7 +466,7 @@ export default function AssinaturaPage() {
                     />
                   </SaasField>
 
-                  <LegalAcceptance plan={selectedPlan} onChange={updateConsent}/>
+                  <LegalAcceptance key={`${selectedPlan}:${legalRevision}`} plan={selectedPlan} onChange={updateConsent}/>
                   <SaasSubmitButton
                     disabled={!legalConsent?.accepted || legalConsent.plan!==selectedPlan}
                     loading={submitting}

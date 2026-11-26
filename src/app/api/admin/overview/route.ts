@@ -1,4 +1,4 @@
-import { SUBSCRIPTION_PLANS } from '@/lib/plans'
+import { planEntitlements, quotePlan, isAvailablePlan, SUBSCRIPTION_PLANS } from '@/lib/plans'
 import { jsonResponse } from '@/lib/json'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -12,9 +12,10 @@ export async function GET(request: NextRequest) {
       return jsonResponse({ error: 'Acesso restrito ao Super Admin' }, { status: 403 })
     }
 
-    const [companies, totalUsers, totalAppointments, totalSales] = await Promise.all([
+    const [storedCompanies, totalUsers, totalAppointments, totalSales] = await Promise.all([
       prisma.company.findMany({
         include: {
+          employees: {where:{isActive:true,role:{in:['BARBER','PODIATRY','MASSAGE']}},select:{id:true}},
           _count: {
             select: {
               users: true,
@@ -35,6 +36,11 @@ export async function GET(request: NextRequest) {
       })
     ])
 
+    const companies = storedCompanies.map(company => {
+      const evaluation = evaluateCompanySubscription(company)
+      const scheduledEffective = company.pendingPlan && company.pendingPlanStartsAt && company.pendingPlanStartsAt <= new Date()
+      return {...company,plan:evaluation.plan,planPrice:scheduledEffective ? (company.pendingPlanPrice ?? company.planPrice) : company.planPrice}
+    })
     const activeCompanies = companies.filter((c) => c.isActive).length
     const monthlyRevenue = companies
       .filter((c) => c.isActive)
@@ -86,6 +92,10 @@ export async function GET(request: NextRequest) {
           address: c.address,
           plan: c.plan,
           planPrice: c.planPrice,
+          additionalProfessionals: c.additionalProfessionals,
+          professionalCapacity: Math.min(planEntitlements(sub.plan,sub.isTrial).professionals,c.pendingPlan?planEntitlements(c.pendingPlan).professionals:Infinity)+c.additionalProfessionals,
+          activeProfessionals: c.employees.length,
+          nextPaymentAmount: isAvailablePlan(sub.plan) ? quotePlan(sub.plan,sub.plan,Boolean(c.subscriptionStartedAt),c.additionalProfessionals).price : Number(c.planPrice),
           isActive: c.isActive,
           status: c.isActive ? 'active' : 'suspended',
           subscriptionStatus: sub.effectiveStatus,

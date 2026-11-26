@@ -17,12 +17,14 @@ export const AVAILABLE_PLANS = PLAN_CODES.map(code => SUBSCRIPTION_PLANS[code])
 export function isAvailablePlan(value: string): value is PlanCode {
   return PLAN_CODES.some(code => code === value)
 }
-export function quotePlan(current: keyof typeof SUBSCRIPTION_PLANS, target: PlanCode, hasPaidSubscription: boolean) {
+export const EXTRA_PROFESSIONAL_MONTHLY_PRICE = 19.9
+export function quotePlan(current: keyof typeof SUBSCRIPTION_PLANS, target: PlanCode, hasPaidSubscription: boolean, additionalProfessionals = 0) {
   const from = SUBSCRIPTION_PLANS[current]
   const to = SUBSCRIPTION_PLANS[target]
   const upgrade = to.rank > from.rank || (to.rank === from.rank && to.months > from.months)
   const discountPercent = hasPaidSubscription && upgrade && to.months >= 6 ? 10 : 0
-  return { ...to, basePrice: to.price, discountPercent, price: Math.round(Math.round(to.price * 100) * (100 - discountPercent) / 100) / 100 }
+  const additionalAmount = additionalProfessionals * Math.round(EXTRA_PROFESSIONAL_MONTHLY_PRICE * 100) * to.months / 100
+  return { ...to, basePrice: to.price, discountPercent, additionalProfessionals, additionalAmount, price: (Math.round(Math.round(to.price * 100) * (100 - discountPercent) / 100) + Math.round(additionalAmount * 100)) / 100 }
 }
 
 // Calendar months, clamped to the last day of the destination month.

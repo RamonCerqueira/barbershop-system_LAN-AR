@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { HttpError } from './http'
-import { requireCompanySubscriptionAccess } from './subscription'
+import { evaluateCompanySubscription, requireCompanySubscriptionAccess } from './subscription'
 import { planEntitlements, PlanFeature, SUBSCRIPTION_PLANS } from './plans'
 
 export const SCHEDULABLE_ROLES = ['BARBER', 'PODIATRY', 'MASSAGE'] as const
@@ -16,11 +16,11 @@ export async function lockCompany(tx: Prisma.TransactionClient, companyId: strin
 export async function assertProfessionalCapacity(tx: Prisma.TransactionClient, companyId: string, excludeId?: string, targetPlan?: keyof typeof SUBSCRIPTION_PLANS, adding = true) {
   const company = await tx.company.findUniqueOrThrow({where:{id:companyId}})
   const now = new Date()
-  const trial = !targetPlan && !company.currentPeriodEnd && (company.trialEndsAt?.getTime() || 0) > now.getTime()
+  const trial = !targetPlan && evaluateCompanySubscription(company, now).isTrial
   const plan = targetPlan || (company.pendingPlan && company.pendingPlanStartsAt && company.pendingPlanStartsAt <= now ? company.pendingPlan : company.plan)
-  const limit = planEntitlements(plan, trial).professionals
+  const limit = planEntitlements(plan, trial).professionals + company.additionalProfessionals
   const count = await tx.employee.count({where:{companyId,isActive:true,role:{in:[...SCHEDULABLE_ROLES]},...(excludeId?{id:{not:excludeId}}:{})}})
   // A paid pending downgrade also reserves the lower capacity.
-  const pendingLimit = company.pendingPlan ? planEntitlements(company.pendingPlan).professionals : limit
-  if (count + (adding ? 1 : 0) > Math.min(limit, pendingLimit)) throw new HttpError(409, `O plano permite até ${Math.min(limit, pendingLimit)} profissionais ativos. Desative um profissional ou altere o plano.`)
+  const pendingLimit = company.pendingPlan ? planEntitlements(company.pendingPlan).professionals + company.additionalProfessionals : limit
+  if (count + (adding ? 1 : 0) > Math.min(limit, pendingLimit)) throw new HttpError(409, `O plano permite até ${Math.min(limit, pendingLimit)} profissionais ativos. Desative um profissional, altere o plano ou solicite ao administrador vagas adicionais de R$ 19,90/mês cada.`)
 }

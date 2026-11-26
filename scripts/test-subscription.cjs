@@ -269,6 +269,12 @@ async function main() {
     await entitlement.requirePlanFeature(companyC.id,'analytics');
     await assert.rejects(entitlement.requirePlanFeature(companyC.id,'whatsapp'),e=>e.status===403);
     assert.equal((await sub.getCompanySubscriptionStatus(companyC.id)).entitlements.professionals,10);
+    await db.company.update({where:{id:companyC.id},data:{trialEndsAt:null}});
+    await db.employee.createMany({data:[1,2].map(i=>({companyId:companyC.id,name:'Trial compat '+i,phone:'5511999999999',role:'BARBER',hireDate:new Date(),isActive:true}))});
+    await db.$transaction(async tx=>{await entitlement.lockCompany(tx,companyC.id);await entitlement.assertProfessionalCapacity(tx,companyC.id)});
+    await db.employee.deleteMany({where:{companyId:companyC.id,name:{startsWith:'Trial compat '}}});
+    await db.company.update({where:{id:companyC.id},data:{trialEndsAt:created.company.trialEndsAt}});
+
     tokenC=await auth.generateToken({id:userC.id,email:userC.email,name:userC.name,role:'ADMIN',companyId:companyC.id,type:'COMPANY_USER'});
     await db.company.update({where:{id:companyC.id},data:{subscriptionStatus:'ACTIVE',subscriptionStartedAt:new Date(),currentPeriodEnd:paidUntil,plan:'MONTHLY'}});
   });
@@ -304,6 +310,31 @@ async function main() {
     const anotherActive=await db.employee.findFirst({where:{companyId:companyC.id,role:'BARBER',isActive:true}});
     assert.equal((await item.DELETE(reqC('/api/employees/'+anotherActive.id,'DELETE'),{params:Promise.resolve({id:anotherActive.id})})).status,200);
     await db.company.update({where:{id:companyC.id},data:{currentPeriodEnd:paidUntil,subscriptionStatus:'ACTIVE'}});
+  });
+  await check('Admin add-ons unlock capacity and enter next PIX with immutable payment snapshot',async()=>{
+    const route=require('../src/app/api/admin/companies/[id]/route.ts');
+    const ownerToken=await auth.generateToken({id:owner.id,email:owner.email,name:owner.name,type:'SYSTEM_OWNER'});
+    const patch=async(value,token=ownerToken)=>route.PATCH(new NextRequest('http://localhost/api/admin/companies/'+companyC.id,{method:'PATCH',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({additionalProfessionals:value})}),{params:Promise.resolve({id:companyC.id})});
+    assert.equal((await route.PATCH(reqC('/api/admin/companies/'+companyC.id,'PATCH',{additionalProfessionals:1}),{params:Promise.resolve({id:companyC.id})})).status,403);
+    for(const value of [-1,1.5,'1',1001]) assert.equal((await patch(value)).status,400);
+    assert.equal((await patch(1)).status,200);
+    assert.equal((await sub.getCompanySubscriptionStatus(companyC.id)).professionalCapacity,3);
+    const employees=require('../src/app/api/employees/route.ts');
+    for(let i=0;i<3;i++) assert.equal((await employees.POST(reqC('/api/employees','POST',{name:'Adicional '+i,phone:'5511999999999',role:'BARBER',isActive:true}))).status,201);
+    assert.equal((await employees.POST(reqC('/api/employees','POST',{name:'Excedente',phone:'5511999999999',role:'BARBER',isActive:true}))).status,409);
+    assert.equal((await patch(0)).status,409);
+    const payment=await submitPayment({companyId:companyC.id,plan:'MONTHLY'});
+    assert.equal(Number(payment.amount),109.8);
+    assert.equal(Number(payment.additionalAmount),19.9);
+    assert.equal(payment.additionalProfessionals,1);
+    assert.equal((await patch(2)).status,409);
+    const approved=await sub.reviewSubscriptionPayment({paymentId:payment.id,action:'APPROVE',reviewerId:owner.id,reviewerName:owner.name});
+    assert.equal(approved.company.additionalProfessionals,1);
+    assert.equal(sub.evaluateCompanySubscription(approved.company).hasAccess,true);
+    await db.employee.updateMany({where:{companyId:companyC.id},data:{isActive:false}});
+    assert.equal((await patch(0)).status,200);
+    assert.equal(Number((await db.subscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).amount),109.8);
+    await db.company.update({where:{id:companyC.id},data:{currentPeriodEnd:paidUntil}});
   });
   await check('Paid downgrade remains scheduled, locks capacity and activates on renewal',async()=>{
     await db.company.update({where:{id:companyC.id},data:{plan:'ELITE_MONTHLY'}});
@@ -403,6 +434,7 @@ async function main() {
     const ownerRequest=new NextRequest('http://localhost/api/contracts/'+acceptance.id,{headers:{cookie:'barberpro_token='+adminToken}});
     assert.equal((await download.GET(ownerRequest,{params:Promise.resolve({id:acceptance.id})})).status,200);
   });
+
   await check('Unified login selects the panel from verified credentials and ignores a requested role',async()=>{
     const route=require('../src/app/api/auth/login/route.ts');
     const request=body=>new NextRequest('http://localhost/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

@@ -58,9 +58,14 @@ Fontes legais e cadastrais consultadas:
 - CDC: https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm
 - Endereço do Parque Tecnológico: https://parquetecnologico-ba.org.br/como-chegar/
 
-Validação funcional: 180 combinações de preços/descontos; 17 casos de assinatura, permissões, capacidade, WhatsApp e contratos; 27 casos gerais; 23 casos do portal do cliente. Build de produção e validação visual são repetidos após as alterações finais de interface.
+Validação funcional: 180 combinações de preços/descontos; 18 casos de assinatura, permissões, capacidade, WhatsApp e contratos; 27 casos gerais; 23 casos do portal do cliente. Build de produção e validação visual são repetidos após as alterações finais de interface.
 
 
 ## Entrada unificada
 
 A tela pública de `/login` não exibe seleção de perfil ou indicação do proprietário do sistema. O endpoint autentica e-mail/senha e devolve o destino correspondente à identidade registrada; parâmetros de perfil enviados pelo cliente não alteram permissões. As rotas protegidas continuam validando a sessão e o papel no servidor. O formulário mantém senha oculta por padrão, suporte a gerenciadores de senha, recuperação e acesso separado ao portal do cliente. O retorno da recuperação aparece como aviso na própria tela. Nenhuma senha é salva em armazenamento local.
+
+
+## Profissionais adicionais
+
+O proprietário pode liberar vagas extras por empresa, a R$ 19,90/mês por profissional agendável. A capacidade muda imediatamente e a cobrança entra no próximo pedido PIX, multiplicada pelos meses do ciclo e sem desconto dos adicionais. A tabela de planos mantém as vagas básicas incluídas. A quantidade e o valor adicional ficam gravados no pagamento e no contrato aceito. Alterações de adicionais são bloqueadas enquanto houver PIX pendente; a redução também exige adequar a quantidade de profissionais ativos. O histórico de pagamentos não é recalculado. Esses adicionais não alteram a cota de WhatsApp. As novas condições estão na versão contratual 2026-11-26.1; versões anteriormente aceitas são preservadas.
