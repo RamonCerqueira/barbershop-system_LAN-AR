@@ -403,6 +403,19 @@ async function main() {
     const ownerRequest=new NextRequest('http://localhost/api/contracts/'+acceptance.id,{headers:{cookie:'barberpro_token='+adminToken}});
     assert.equal((await download.GET(ownerRequest,{params:Promise.resolve({id:acceptance.id})})).status,200);
   });
+  await check('Unified login selects the panel from verified credentials and ignores a requested role',async()=>{
+    const route=require('../src/app/api/auth/login/route.ts');
+    const request=body=>new NextRequest('http://localhost/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const companyResponse=await route.POST(request({email:userC.email.toUpperCase(),password:'Password123!',type:'SYSTEM_OWNER',loginType:'admin'}));
+    assert.equal(companyResponse.status,200);
+    const companyBody=await companyResponse.json();assert.equal(companyBody.user.type,'COMPANY_USER');assert.equal(companyBody.redirectTo,'/dashboard');
+    await db.systemOwner.update({where:{id:owner.id},data:{password:await auth.hashPassword('OwnerTest123!')}});
+    const ownerResponse=await route.POST(request({email:owner.email,password:'OwnerTest123!'}));
+    assert.equal(ownerResponse.status,200);
+    const ownerBody=await ownerResponse.json();assert.equal(ownerBody.user.type,'SYSTEM_OWNER');assert.equal(ownerBody.redirectTo,'/admin');
+    const denied=await route.POST(request({email:owner.email,password:'invalid-password'}));assert.equal(denied.status,401);
+    const deniedBody=await denied.json();assert.equal(deniedBody.user,undefined);assert.equal(deniedBody.redirectTo,undefined);
+  });
   console.log('SUBSCRIPTION SUITE COMPLETE: ' + results.length + ' cases');
 }
 

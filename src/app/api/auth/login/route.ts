@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
     const token = await generateToken(user)
 
     const response = jsonResponse({
-      user
+      user,
+      redirectTo: user.type === 'SYSTEM_OWNER' ? '/admin' : '/dashboard'
     })
 
     response.cookies.set('barberpro_token', token, sessionCookieOptions())

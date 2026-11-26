@@ -7,8 +7,11 @@ import {
   Eye,
   EyeOff,
   ArrowLeft,
-  Crown,
-  Building2,
+  ArrowRight,
+  CalendarDays,
+  Users,
+  Sparkles,
+  LoaderCircle,
   Lock,
   Mail,
   Scissors,
@@ -16,11 +19,13 @@ import {
 import Link from "next/link";
 import { SaasAlert, SaasField, SaasSubmitButton, saasInputClass } from "@/components/ui/SaasUI";
 
+import "./login.css";
+
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
-  const [loginType, setLoginType] = useState<"company" | "admin">("company");
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [loginNotice, setLoginNotice] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -41,6 +46,7 @@ export default function Login() {
     if (isLoading) return;
     setIsLoading(true);
     setLoginError("");
+    setLoginNotice("");
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -48,7 +54,7 @@ export default function Login() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({email:formData.email.trim().toLowerCase(),password:formData.password}),
       });
 
       const data = await response.json();
@@ -56,11 +62,9 @@ export default function Login() {
       if (response.ok) {
         localStorage.setItem("user", JSON.stringify(data.user));
 
-        if (data.user.type === "SYSTEM_OWNER") {
-          window.location.href = "/admin";
-        } else {
-          window.location.href = "/dashboard";
-        }
+        const destination = new URL(data.redirectTo || "/dashboard", window.location.origin);
+        if (destination.origin !== window.location.origin) throw new Error("Destino de acesso inválido.");
+        window.location.assign(destination.pathname);
       } else {
         setLoginError(data.error || "Credenciais inválidas ou conta inativa.");
       }
@@ -117,7 +121,8 @@ export default function Login() {
       setResetCode("");
       setNewPassword("");
       setFormData((prev) => ({ ...prev, email: resetEmail }));
-      alert(data.message);
+      setLoginError("");
+      setLoginNotice(data.message || "Senha atualizada. Entre novamente para continuar.");
     } catch (err: any) {
       setResetError(err.message);
     } finally {
@@ -126,158 +131,38 @@ export default function Login() {
   };
 
   return (
-    <div className="dashboard-shell flex min-h-screen items-center justify-center p-4 text-white">
-      <div className="w-full max-w-md space-y-6">
-        {/* Header */}
-        <div className="text-center">
-          <Link
-            href="/"
-            className="mb-6 inline-flex items-center text-sm text-slate-400 transition-colors hover:text-[#f5b51b]"
-          >
-            <ArrowLeft size={18} className="mr-2" />
-            Voltar ao site
-          </Link>
-
-          <div className="mb-4 flex items-center justify-center gap-3">
-            <span className="dashboard-brand-mark flex h-12 w-12 items-center justify-center rounded-2xl">
-              <Scissors size={24} />
-            </span>
-            <div className="text-2xl font-black tracking-[0.16em] text-white">
-              BARBER<span className="text-[#f5b51b]">PRO</span>
-            </div>
+    <main className="platform-login">
+      <header className="login-topbar">
+        <Link href="/" className="login-brand" aria-label="BarberPro, voltar ao site"><span className="login-brand-symbol"><Scissors size={23}/></span><span>BARBER<span>PRO</span></span></Link>
+        <Link href="/" className="login-back"><ArrowLeft size={16}/>Voltar ao site</Link>
+      </header>
+      <div className="login-grid">
+        <aside className="login-intro" aria-label="BarberPro para sua rotina">
+          <span className="login-eyebrow"><Sparkles size={15}/>FEITO PARA A SUA BARBEARIA</span>
+          <h2>Toda a sua gestão.<br/><span>No ritmo da sua<br/>barbearia.</span></h2>
+          <p className="login-intro-copy">Organize os horários, conheça seus clientes e cuide do próximo atendimento com mais tranquilidade.</p>
+          <div className="login-feature-list">
+            <div><span><CalendarDays size={22}/></span><div><strong>Seu dia, bem organizado</strong><p>Agenda e reservas em um só lugar.</p></div></div>
+            <div><span><Users size={22}/></span><div><strong>Cada cliente tem uma história</strong><p>Mantenha os próximos encontros por perto.</p></div></div>
           </div>
-
-          <h1 className="text-2xl font-bold text-white">Acessar Plataforma</h1>
-          <p className="mt-1 text-sm text-[#a0a9b6]">
-            Entre com suas credenciais para gerenciar sua barbearia
-          </p>
-        </div>
-
-        {/* Login Type Selector */}
-        <div className="flex rounded-2xl border border-white/10 bg-[#141920] p-1">
-          <button
-            type="button"
-            onClick={() => setLoginType("company")}
-            className={`flex flex-1 items-center justify-center rounded-xl py-2.5 px-4 text-xs font-semibold transition ${loginType === "company"
-              ? "bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] text-[#15120b]"
-              : "text-slate-400 hover:text-white"
-              }`}
-          >
-            <Building2 size={16} className="mr-2" />
-            Barbearia
-          </button>
-          <button
-            type="button"
-            onClick={() => setLoginType("admin")}
-            className={`flex flex-1 items-center justify-center rounded-xl py-2.5 px-4 text-xs font-semibold transition ${loginType === "admin"
-              ? "bg-gradient-to-r from-[#f5b51b] to-[#dc9b2d] text-[#15120b]"
-              : "text-slate-400 hover:text-white"
-              }`}
-          >
-            <Crown size={16} className="mr-2" />
-            SuperAdmin
-          </button>
-        </div>
-
-        {/* Login Form */}
-        <div className="rounded-[18px] border border-white/[0.085] bg-gradient-to-br from-[#181d24] to-[#10141a] p-7 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {loginError && (
-              <SaasAlert variant="error" message={loginError} />
-            )}
-
-            <SaasField label="E-mail" required htmlFor="email">
-              <div className="relative">
-                <Mail
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={17}
-                />
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className={`${saasInputClass} pl-10`}
-                  placeholder="seu@email.com"
-                />
-              </div>
-            </SaasField>
-
-            <SaasField label="Senha" required htmlFor="password">
-              <div className="relative">
-                <Lock
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={17}
-                />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  autoComplete="current-password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  className={`${saasInputClass} pl-10 pr-11`}
-                  placeholder="Sua senha"
-                />
-                <button
-                  type="button"
-                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </SaasField>
-
-            <div className="flex items-center justify-between text-xs">
-              <label className="flex cursor-pointer items-center gap-2 text-slate-300">
-                <input
-                  id="remember"
-                  type="checkbox"
-                  className="h-4 w-4 rounded accent-[#f5b51b]"
-                />
-                <span>Lembrar de mim</span>
-              </label>
-              <button
-                type="button"
-                className="font-semibold text-[#f5b51b] hover:text-amber-300"
-                onClick={() => {
-                  setResetEmail(formData.email);
-                  setResetStep(1);
-                  setResetMessage("");
-                  setResetError("");
-                  setShowResetModal(true);
-                }}
-              >
-                Esqueceu a senha?
-              </button>
-            </div>
-
-            <SaasSubmitButton loading={isLoading} loadingText="Entrando..." className="w-full py-3">
-              Entrar no Sistema
-            </SaasSubmitButton>
+          <Link href="/planos" className="login-discover">Conheça os recursos do BarberPro<ArrowRight size={17}/></Link>
+          <span className="login-decoration" aria-hidden="true"><Scissors size={150} strokeWidth={.6}/></span>
+        </aside>
+        <section className="login-panel" aria-labelledby="login-title">
+          <div className="login-panel-heading"><span className="login-panel-kicker">BOM TER VOCÊ POR AQUI</span><h1 id="login-title">Bem-vindo de volta.</h1><p>Entre com seu e-mail e senha para continuar.</p></div>
+          <form onSubmit={handleSubmit} className="login-form">
+            {loginError&&<div id="login-error"><SaasAlert variant="error" message={loginError}/></div>}
+            {loginNotice&&<SaasAlert variant="success" message={loginNotice}/>}
+            <div className="login-field"><label htmlFor="email">E-mail</label><div className="login-input-wrap"><Mail size={19} aria-hidden="true"/><input id="email" name="email" type="email" required autoComplete="username" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} aria-invalid={Boolean(loginError)} aria-describedby={loginError?'login-error':undefined} value={formData.email} onChange={e=>setFormData({...formData,email:e.target.value})} placeholder="seu@email.com"/></div></div>
+            <div className="login-field"><label htmlFor="password">Senha</label><div className="login-input-wrap"><Lock size={19} aria-hidden="true"/><input id="password" name="password" type={showPassword?'text':'password'} required autoComplete="current-password" aria-invalid={Boolean(loginError)} aria-describedby={loginError?'login-error':undefined} value={formData.password} onChange={e=>setFormData({...formData,password:e.target.value})} placeholder="Digite sua senha"/><button type="button" className="login-password-toggle" aria-label={showPassword?'Ocultar senha':'Mostrar senha'} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></div></div>
+            <div className="login-options"><button type="button" onClick={()=>{setResetEmail(formData.email);setResetStep(1);setResetMessage('');setResetError('');setShowResetModal(true)}}>Esqueceu sua senha?</button></div>
+            <button type="submit" className="login-submit" disabled={isLoading} aria-busy={isLoading}>{isLoading?<><LoaderCircle size={19} className="login-spinner"/>Entrando…</>:<>Acessar minha conta<ArrowRight size={19}/></>}</button>
           </form>
-
-          <div className="mt-6 border-t border-white/10 pt-5 text-center">
-            <p className="text-sm text-slate-400">
-              Ainda não tem conta?{" "}
-              <Link
-                href="/contratar"
-                className="font-semibold text-[#f5b51b] hover:text-amber-300"
-              >
-                Testar 7 dias grátis
-              </Link>
-            </p>
-          </div>
-        </div>
+          <div className="login-signup"><p>Ainda não usa o BarberPro?</p><Link href="/contratar">Experimente por 7 dias<ArrowRight size={16}/></Link></div>
+          <div className="login-customer"><span>Quer agendar um horário?</span><Link href="/cliente">Abrir portal do cliente<ArrowRight size={15}/></Link></div>
+        </section>
       </div>
+      <footer className="login-footer"><span>© {new Date().getFullYear()} BarberPro</span><nav aria-label="Informações legais"><Link href="/contrato">Termos de uso</Link><Link href="/privacidade">Privacidade</Link></nav></footer>
 
       {/* Modal de Recuperação de Senha */}
       {showResetModal && (
@@ -367,6 +252,6 @@ export default function Login() {
             )}
           </SaasModal>
       )}
-    </div>
+    </main>
   );
 }

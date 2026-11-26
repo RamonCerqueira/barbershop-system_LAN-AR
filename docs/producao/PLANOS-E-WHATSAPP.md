@@ -58,4 +58,9 @@ Fontes legais e cadastrais consultadas:
 - CDC: https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm
 - Endereço do Parque Tecnológico: https://parquetecnologico-ba.org.br/como-chegar/
 
-Validação funcional: 180 combinações de preços/descontos; 16 casos de assinatura, permissões, capacidade, WhatsApp e contratos; 27 casos gerais; 23 casos do portal do cliente. Build de produção e validação visual são repetidos após as alterações finais de interface.
+Validação funcional: 180 combinações de preços/descontos; 17 casos de assinatura, permissões, capacidade, WhatsApp e contratos; 27 casos gerais; 23 casos do portal do cliente. Build de produção e validação visual são repetidos após as alterações finais de interface.
+
+
+## Entrada unificada
+
+A tela pública de `/login` não exibe seleção de perfil ou indicação do proprietário do sistema. O endpoint autentica e-mail/senha e devolve o destino correspondente à identidade registrada; parâmetros de perfil enviados pelo cliente não alteram permissões. As rotas protegidas continuam validando a sessão e o papel no servidor. O formulário mantém senha oculta por padrão, suporte a gerenciadores de senha, recuperação e acesso separado ao portal do cliente. O retorno da recuperação aparece como aviso na própria tela. Nenhuma senha é salva em armazenamento local.
